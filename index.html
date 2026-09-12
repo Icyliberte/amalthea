@@ -310,8 +310,6 @@ function blank(){
     /* taux : valeur en EUR d'une unité de devise */
     rates:{EUR:1,USD:0.92,CHF:1.06,GBP:1.17},
     assets:[], lots:[], liabilities:[], envelopes:[], projects:[],
-    watchlist:[],
-    tdKey:'6f0d215bf4844d408da2003d9b3a93d4',
     snapshots:[],
     drafts:{},
     dismissed:[],
@@ -349,7 +347,8 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on
 function num(v){ const n=parseFloat(String(v).replace(',','.').replace(/\s/g,'')); return isNaN(n)?null:n; }
 
 /* ============================================================
-   4. CATALOGUE LOCAL (aucun appel réseau)
+   4. CATALOGUE LOCAL (cours et fiches figés, aucun appel réseau ici —
+      les logos/PER/BNPA/croissance sont chargés à la demande via Finnhub)
    ============================================================ */
 const CATALOG=[
  {n:"LVMH",isin:"FR0000121014",tk:"MC",pl:"Euronext Paris",c:"EUR",sec:"Luxe",p:"France",px:642.30},
@@ -383,73 +382,80 @@ const CATALOG=[
  {n:"Nestlé",isin:"CH0038863350",tk:"NESN",pl:"SIX Swiss",c:"CHF",sec:"Agroalimentaire",p:"Suisse",px:83.06},
  {n:"Roche Holding",isin:"CH0012032048",tk:"ROG",pl:"SIX Swiss",c:"CHF",sec:"Santé",p:"Suisse",px:262.10},
  {n:"AstraZeneca",isin:"GB0009895292",tk:"AZN",pl:"London SE",c:"GBP",sec:"Santé",p:"Royaume-Uni",px:121.44},
- {n:"Shell",isin:"GB00BP6MXD84",tk:"SHEL",pl:"London SE",c:"GBP",sec:"Énergie",p:"Royaume-Uni",px:27.63},
- {n:"Inventiva",isin:"FR0013233012",tk:"IVA",pl:"Euronext Paris",c:"EUR",sec:"Biotechnologie",p:"France",px:5.10},
- {n:"STIF",isin:"FR001400MDW2",tk:"ALSTI",pl:"Euronext Growth Paris",c:"EUR",sec:"Équipement industriel",p:"France",px:48.00},
- {n:"2CRSi",isin:"FR0013341781",tk:"AL2SI",pl:"Euronext Growth Paris",c:"EUR",sec:"Services informatiques",p:"France",px:8.00},
- {n:"Kalray",isin:"FR0010722819",tk:"ALKAL",pl:"Euronext Growth Paris",c:"EUR",sec:"Semi-conducteurs",p:"France",px:6.20},
- {n:"Abivax",isin:"FR0012333284",tk:"ABVX",pl:"Euronext Paris",c:"EUR",sec:"Biotechnologie",p:"France",px:0}
+ {n:"Shell",isin:"GB00BP6MXD84",tk:"SHEL",pl:"London SE",c:"GBP",sec:"Énergie",p:"Royaume-Uni",px:27.63}
 ];
-/* Le catalogue local ci-dessus sert de repli hors-ligne et de suggestions rapides.
-   Pour toute autre small cap française, la recherche de l'onglet Bourse interroge
-   en direct la base Twelve Data (tdSymbolSearch), qui n'est pas limitée à cette liste. */
 function searchCatalog(q){
   const t=q.trim().toLowerCase(); if(t.length<1) return [];
   return CATALOG.filter(x=>x.n.toLowerCase().includes(t)||x.isin.toLowerCase().includes(t)||x.tk.toLowerCase().includes(t)).slice(0,8);
 }
 
 /* ============================================================
-   4bis. BOURSE — Twelve Data (cours + fondamentaux à la demande)
-   Aucun appel n'est déclenché automatiquement : uniquement au clic
-   sur « Actualiser » ou à l'ouverture d'une fiche. Rien n'est mis
-   en cache dans l'état persistant (données toujours fraîches).
+   4bis. FINNHUB — logo, PER, BNPA, croissance (plan gratuit)
+   Seul module de l'app à faire un appel réseau. Tout le reste
+   reste local. En cas d'échec (clé, quota, symbole introuvable),
+   on affiche « Indisponible » sans jamais casser l'écran.
    ============================================================ */
-const TD_BASE='https://api.twelvedata.com';
-async function tdGet(path,params){
-  const key=(S.tdKey||'').trim();
-  if(!key) return {error:'Aucune clé Twelve Data renseignée dans Réglages.'};
-  const qs=new URLSearchParams(Object.assign({},params,{apikey:key})).toString();
+const FINNHUB_KEY='daijmghr01qr9o8hlktgdaijmghr01qr9o8hlku0';
+const FUND={}; /* cache mémoire, clé = ISIN : {status:'loading'|'ok'|'error', logo, per, eps, growth, ts, reason} */
+const FUND_TTL=24*3600*1000;
+
+function ensureFund(isin){
+  if(!isin) return;
+  const f=FUND[isin];
+  if(f && (f.status==='loading' || (f.status==='ok' && Date.now()-f.ts<FUND_TTL))) return;
+  FUND[isin]={status:'loading'};
+  fetchFund(isin);
+}
+async function fetchFund(isin){
   try{
-    const r=await fetch(`${TD_BASE}/${path}?${qs}`);
-    const j=await r.json();
-    if(j && j.status==='error') return {error:j.message||'Erreur Twelve Data.'};
-    if(j && j.code && j.code!==200 && j.message) return {error:j.message};
-    return j;
-  }catch(e){ return {error:'Réseau indisponible.'}; }
+    const pr=await fetch(`https://finnhub.io/api/v1/stock/profile2?isin=${encodeURIComponent(isin)}&token=${FINNHUB_KEY}`);
+    if(pr.status===401||pr.status===403){ FUND[isin]={status:'error',reason:'cle'}; render(); return; }
+    if(pr.status===429){ FUND[isin]={status:'error',reason:'quota'}; render(); return; }
+    const p=await pr.json();
+    if(!p||!p.ticker){ FUND[isin]={status:'error',reason:'introuvable'}; render(); return; }
+    let per=null,eps=null,growth=null;
+    try{
+      const mr=await fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(p.ticker)}&metric=all&token=${FINNHUB_KEY}`);
+      if(mr.status===200){
+        const m=await mr.json(), mm=(m&&m.metric)||{};
+        per = mm.peBasicExclExtraTTM ?? mm.peExclExtraTTM ?? mm.peTTM ?? null;
+        eps = mm.epsBasicExclExtraItemsTTM ?? mm.epsInclExtraItemsTTM ?? mm.epsTTM ?? null;
+        growth = mm.epsGrowthTTMYoy ?? mm.revenueGrowthTTMYoy ?? null;
+      }
+    }catch(e){}
+    FUND[isin]={status:'ok',logo:p.logo||null,per,eps,growth,ts:Date.now()};
+  }catch(e){
+    FUND[isin]={status:'error',reason:'reseau'};
+  }
+  render();
 }
-/* recherche libre de titres (pas limitée au catalogue local) */
-async function tdSymbolSearch(q){
-  if(!q||q.trim().length<1) return [];
-  const j=await tdGet('symbol_search',{symbol:q});
-  if(j.error||!j.data) return [];
-  return j.data.filter(x=>x.instrument_type==='Common Stock').slice(0,10);
+function fundLogo(isin,size){
+  const f=FUND[isin]; const s=size||28;
+  if(f&&f.status==='ok'&&f.logo) return `<img src="${f.logo}" alt="" style="width:${s}px;height:${s}px;object-fit:contain;border-radius:6px;background:var(--surface);flex-shrink:0" onerror="this.style.display='none'">`;
+  return '';
 }
-async function tdQuote(symbol,exchange){
-  const j=await tdGet('quote',{symbol,...(exchange?{mic_code:exchange}:{})});
-  if(j.error) return j;
-  return {price:num(j.close),change:num(j.percent_change),name:j.name,currency:j.currency,exchange:j.exchange};
+function fondamentauxTab(isin){
+  const f=FUND[isin];
+  if(!f||f.status==='loading') return `<div class="empty">Chargement des données Finnhub…</div>`;
+  if(f.status==='error'){
+    const msg={cle:'Clé Finnhub invalide ou expirée.',quota:'Quota Finnhub atteint pour l\u2019instant, réessayez dans une minute.',introuvable:'Ce titre n\u2019a pas été retrouvé chez Finnhub.',reseau:'Impossible de contacter Finnhub pour le moment.'}[f.reason]||'Données indisponibles.';
+    return `<div class="alert"><h3>Indisponible</h3><p>${esc(msg)}</p></div>
+      <button class="btn quiet" data-act="refreshFund" data-isin="${isin}">Réessayer</button>`;
+  }
+  const g=f.growth;
+  return `<div class="kv"><span>PER (cours / bénéfice)</span><span class="num">${f.per!=null?f.per.toLocaleString('fr-FR',{maximumFractionDigits:1}):'Indisponible'}</span></div>
+    <div class="kv"><span>Bénéfice net par action (TTM)</span><span class="num">${f.eps!=null?f.eps.toLocaleString('fr-FR',{maximumFractionDigits:2}):'Indisponible'}</span></div>
+    <div class="kv"><span>Croissance (résultat, TTM vs N-1)</span><span class="num ${g==null?'':(g>=0?'up':'down')}">${g!=null?(g>=0?'+':'')+g.toLocaleString('fr-FR',{maximumFractionDigits:1})+' %':'Indisponible'}</span></div>
+    <p class="small muted" style="margin-top:var(--s3)">Source Finnhub (plan gratuit). ${f.per==null&&f.eps==null&&g==null?'Ces indicateurs ne sont pas toujours couverts pour les valeurs hors États-Unis sur le plan gratuit.':''}</p>
+    <button class="btn quiet" style="margin-top:var(--s2)" data-act="refreshFund" data-isin="${isin}">Actualiser</button>`;
 }
-async function tdStatistics(symbol,exchange){
-  const j=await tdGet('statistics',{symbol,...(exchange?{mic_code:exchange}:{})});
-  if(j.error) return j;
-  const st=j.statistics||{};
-  const val=st.valuations_metrics||{}, fin=st.financials||{}, div=st.dividends_and_splits||{}, growth=fin.income_statement||{};
-  return {
-    per:val.trailing_pe??val.forward_pe??null,
-    bna:fin.earnings_per_share??null,
-    dividendeRendement:div.forward_annual_dividend_yield??null,
-    dividendeMontant:div.forward_annual_dividend_rate??null,
-    croissanceCA:fin.quarterly_revenue_growth??null,
-    marge:fin.profit_margin??null
-  };
+function newsTabPlaceholder(){
+  return `<div class="empty">Actualités à venir.<br>Cet onglet sera connecté à un flux d\u2019actualités dans une prochaine étape.</div>`;
 }
-function extLinks(name,isin,tk){
-  const q=encodeURIComponent(name||isin||tk||'');
-  return {
-    boursobank:`https://www.boursobank.com/bourse/recherche/?query=${q}`,
-    zonebourse:`https://www.zonebourse.com/recherche/?q=${q}`,
-    euronext:`https://live.euronext.com/en/search?query=${encodeURIComponent(isin||name||tk||'')}`
-  };
+const FICHE_TABS=[{k:'overview',l:'Vue d\u2019ensemble'},{k:'fond',l:'Fondamentaux'},{k:'news',l:'Actualités'}];
+let FICHE_TAB='overview';
+function ficheTabs(){
+  return `<div class="seg" style="margin:var(--s4) 0">${FICHE_TABS.map(t=>`<button data-act="ficheTab" data-t="${t.k}" class="${FICHE_TAB===t.k?'on':''}">${t.l}</button>`).join('')}</div>`;
 }
 
 /* ============================================================
@@ -560,7 +566,7 @@ mq.addEventListener('change',()=>{ if(S.theme==='system') applyTheme(); });
 const TABS=[
   {k:'patrimoine',l:'Patrimoine',i:'<path d="M3 20V9l9-6 9 6v11"/><path d="M9 20v-6h6v6"/>'},
   {k:'projets',l:'Projets',i:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2"/>'},
-  {k:'bourse',l:'Bourse',i:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 6h6v6"/>'},
+  {k:'alertes',l:'Alertes',i:'<path d="M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6Z"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/>'},
   {k:'recherche',l:'Recherche',i:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'},
   {k:'reglages',l:'Réglages',i:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>'}
 ];
@@ -573,7 +579,7 @@ function drawTabs(){
       <svg viewBox="0 0 24 24">${t.i}</svg><span>${t.l}</span></button>`).join('');
 }
 function go(tab){ TAB=tab; stack=[]; render(); }
-function push(type,id){ stack.push({type,id}); if(type==='titre') loadTitre(id); render(); }
+function push(type,id){ if(type==='actif'||type==='preview') FICHE_TAB='overview'; stack.push({type,id}); render(); }
 function pop(){ stack.pop(); render(); }
 
 document.addEventListener('click',e=>{
@@ -652,10 +658,7 @@ VIEW.patrimoine=function(){
     <div class="view">
       ${has&&vr?`<div class="small ${vr.abs>=0?'up':'down'}" style="font-weight:700">${vr.abs>=0?'+':'−'}${money(Math.abs(vr.abs))} · ${vr.abs>=0?'+':'−'}${pct(Math.abs(vr.rel))} sur ${RANGE_L[RANGE]}</div>`:''}
       ${has&&S.snapshots.length>1?chart(RANGE)+rangePicker():''}
-      ${!has?`<p class="muted" style="margin-top:var(--s2)">Ajoutez une première ligne pour voir votre patrimoine se construire. Rien n'est envoyé en ligne, tout reste sur cet appareil.</p><hr class="rule">`:'<hr class="rule">'}
-      ${Object.keys(S.drafts).map(k=>`<div class="alert"><h3>Saisie ${CLASSES[k].name} interrompue</h3><p>Votre brouillon est conservé.</p>
-        <div style="margin-top:var(--s2);display:flex;gap:var(--s3)"><button class="chip warm" data-act="resume" data-cls="${k}">Reprendre</button>
-        <button class="chip" data-act="dropDraft" data-cls="${k}">Abandonner</button></div></div>`).join('')}
+      ${!has?`<p class="muted" style="margin-top:var(--s2)">Ajoutez une première ligne pour voir votre patrimoine se construire. Vos montants restent sur cet appareil ; seule la recherche de titres interroge Finnhub pour les logos et indicateurs.</p><hr class="rule">`:'<hr class="rule">'}
       ${cards}
       ${(debtLine||taxLine)?`<div style="margin-top:var(--s5)"><div class="lbl" style="margin-bottom:var(--s2)">Ce qui pèse sur le net</div>${debtLine}${taxLine}
         <div class="kv"><span>Valeur brute des actifs</span><span class="num">${money(S.totals.total)}</span></div></div>`:''}
@@ -779,11 +782,45 @@ SUB.actif=function(id){
       ${inside.length?inside.map(x=>`<button class="row" data-act="openAsset" data-id="${x.id}"><span class="l"><strong>${esc(x.name)}</strong></span><span class="r"><strong class="num">${money(x._c?x._c.v:0)}</strong></span></button>`).join(''):'<p class="muted small">Aucun titre rattaché.</p>'}
       <div style="margin-top:var(--s5)"><button class="btn quiet" data-act="editCash" data-id="${a.id}">Modifier les liquidités</button></div>`;
   }
+  const isBourse=a.cls==='bourse', canFund=isBourse&&a.listed&&a.isin;
+  if(canFund) ensureFund(a.isin);
+  const finalBody = !isBourse ? body : (FICHE_TAB==='overview'?body:(FICHE_TAB==='fond'?(canFund?fondamentauxTab(a.isin):'<div class="empty">Actif non coté : aucune donnée Finnhub disponible.</div>'):newsTabPlaceholder()));
   return `${backbar(a.name)}
     <div class="view">
-      <div class="mono-big num" style="margin-bottom:var(--s5)">${money(v)}</div>
-      ${body}
+      ${canFund?fundLogo(a.isin,40):''}
+      <div class="mono-big num" style="margin-bottom:${isBourse?'var(--s2)':'var(--s5)'}">${money(v)}</div>
+      ${isBourse?ficheTabs():''}
+      ${finalBody}
       <div style="margin-top:var(--s6)"><button class="btn danger" data-act="delAsset" data-id="${a.id}">Supprimer cette ligne</button></div>
+    </div>`;
+};
+
+/* ---------- fiche de prévisualisation (catalogue, avant ajout) ---------- */
+SUB.preview=function(isin){
+  const c=CATALOG.find(x=>x.isin===isin); if(!c) return backbar('Introuvable')+'<div class="view"></div>';
+  ensureFund(isin);
+  const already=S.assets.find(x=>x.cls==='bourse'&&x.isin===isin);
+  let body='';
+  if(FICHE_TAB==='overview'){
+    body=`<div class="kv"><span>ISIN</span><span class="num">${esc(c.isin)}</span></div>
+      <div class="kv"><span>Ticker</span><span class="num">${esc(c.tk)}</span></div>
+      <div class="kv"><span>Place</span><span>${esc(c.pl)}</span></div>
+      <div class="kv"><span>Devise</span><span>${esc(c.c)}</span></div>
+      <div class="kv"><span>Secteur</span><span>${esc(c.sec)}</span></div>
+      <div class="kv"><span>Pays</span><span>${esc(c.p)}</span></div>
+      <div class="kv"><span>Dernier cours (catalogue local)</span><span class="num">${c.px.toLocaleString('fr-FR',{minimumFractionDigits:2})} ${CCY[c.c].s}</span></div>`;
+  } else if(FICHE_TAB==='fond'){ body=fondamentauxTab(isin); }
+  else { body=newsTabPlaceholder(); }
+  return `${backbar(c.n)}
+    <div class="view">
+      ${fundLogo(isin,40)}
+      <div class="mono-big num" style="margin-bottom:var(--s2)">${c.px.toLocaleString('fr-FR',{minimumFractionDigits:2})} ${CCY[c.c].s}</div>
+      ${ficheTabs()}
+      ${body}
+      <div style="margin-top:var(--s6)">
+        ${already?`<p class="muted small" style="margin-bottom:var(--s3)">Déjà présent dans votre patrimoine.</p><button class="btn quiet" data-act="openAsset" data-id="${already.id}">Voir la ligne existante</button>`
+        :`<button class="btn" data-act="previewAdd" data-isin="${c.isin}">Ajouter à mon patrimoine</button>`}
+      </div>
     </div>`;
 };
 
@@ -835,91 +872,42 @@ SUB.projet=function(id){
    </div>`;
 };
 
-/* ---------- Bourse (watchlist + fiche titre en direct) ---------- */
-let BQ='', BQres=[], BQloading=false;
-const SEARCH_CACHE={};
-function titleKey(x){ return x.isin ? x.isin : (x.tk+'|'+(x.mic||x.pl||'')); }
-function cacheItem(x){ SEARCH_CACHE[titleKey(x)]=x; return x; }
-function findTitle(key){
-  return CATALOG.find(c=>titleKey(c)===key)
-      || S.watchlist.find(w=>titleKey(w)===key)
-      || SEARCH_CACHE[key] || null;
+/* ---------- Alertes ---------- */
+function buildAlerts(){
+  const out=[];
+  S.assets.filter(a=>a.cls==='bourse'&&a.px).forEach(a=>{
+    const d=daysSince(a.px.date);
+    if(d>7) out.push({id:'px'+a.id,k:'warm',t:`${a.name} — cours vieux de ${d} jours`,d:`Dernier cours connu : ${(a.px.value).toLocaleString('fr-FR')} ${CCY[a.ccy].s} au ${fmtDate(a.px.date)}.`,go:['actif',a.id]});
+  });
+  S.assets.filter(a=>a.cls==='immobilier').forEach(a=>{
+    if(daysSince(a.valueDate)>365) out.push({id:'im'+a.id,k:'calm',t:`${a.name} — estimation de plus d'un an`,d:`Estimée le ${fmtDate(a.valueDate)}.`,go:['actif',a.id]});
+  });
+  S.assets.filter(a=>a.cls==='enveloppes').forEach(e=>{
+    const t=envTax(e);
+    if(t.tax>0) out.push({id:'tx'+e.id,k:'calm',t:`${ENV_NAME[e.kind]} — ${money(t.tax)} d'impôt latent`,d:`Sur ${money(t.gain)} de plus-value, au taux de ${pct(t.rate,1)}.`,go:['actif',e.id]});
+  });
+  S.projects.filter(p=>!p.done).forEach(p=>{
+    const d=-daysSince(p.date);
+    if(d>=0&&d<90) out.push({id:'pj'+p.id,k:'warm',t:`${p.name} — échéance dans ${d} jours`,d:`Mensualité prévue : ${money(finance(p).monthly)}.`,go:['projet',p.id]});
+  });
+  Object.keys(S.drafts).forEach(k=>{
+    out.push({id:'dr'+k,k:'warm',t:`Saisie ${CLASSES[k].name} interrompue`,d:'Votre brouillon est conservé, vous pouvez reprendre où vous en étiez.',draft:k});
+  });
+  const vr=variation(30);
+  if(vr&&Math.abs(vr.rel)>=0.05) out.push({id:'mv',k:'warm',t:`Patrimoine ${vr.rel>0?'en hausse':'en baisse'} de ${pct(Math.abs(vr.rel))} sur 30 jours`,d:`Soit ${vr.abs>0?'+':'−'}${money(Math.abs(vr.abs))}.`});
+  return out.filter(x=>!S.dismissed.includes(x.id));
 }
-async function doBourseSearch(){
-  const q=BQ.trim();
-  if(q.length<2){ BQres=[]; render(); return; }
-  BQloading=true; render();
-  const local=searchCatalog(q).map(c=>Object.assign({},c));
-  let live=[];
-  if(S.tdKey){
-    const r=await tdSymbolSearch(q);
-    live=r.filter(x=>x.country==='France').map(x=>({n:x.instrument_name,tk:x.symbol,pl:x.exchange,mic:x.mic_code,c:x.currency,isin:null,sec:'',p:'France'}));
-  }
-  const seenTk=new Set(local.map(x=>x.tk));
-  live=live.filter(x=>!seenTk.has(x.tk));
-  const merged=[...local,...live].slice(0,15);
-  merged.forEach(cacheItem);
-  BQres=merged; BQloading=false; render();
-}
-let TITRE_DATA={};
-async function loadTitre(key){
-  const x=findTitle(key); if(!x) return;
-  TITRE_DATA[key]={loading:true}; render();
-  const [q,st]=await Promise.all([tdQuote(x.tk,x.mic),tdStatistics(x.tk,x.mic)]);
-  TITRE_DATA[key]={loading:false,quote:q,stats:st}; render();
-}
-function bourseRow(x,isResult){
-  const k=titleKey(x), inWl=S.watchlist.some(w=>titleKey(w)===k);
-  return `<div class="row" data-act="openTitre" data-k="${esc(k)}">
-    <span class="l"><strong>${esc(x.n)}</strong><span class="small muted">${esc(x.tk)} · ${esc(x.pl||'')}</span></span>
-    <span class="r"><button class="chip ${inWl?'on':'warm'}" data-act="${inWl?'wlDel':'wlAdd'}" data-k="${esc(k)}">${inWl?'Suivi ✓':'Suivre'}</button></span></div>`;
-}
-VIEW.bourse=function(){
-  const wl=S.watchlist;
-  AFTER=()=>{ const i=$('#bq'); if(i){ i.focus({preventScroll:true}); i.setSelectionRange(i.value.length,i.value.length); } };
-  return `<div class="hdr"><div><div class="lbl">Bourse</div><h1>${wl.length||'Watchlist'}</h1></div></div>
+VIEW.alertes=function(){
+  const a=buildAlerts();
+  return `<div class="hdr"><div><div class="lbl">Alertes</div><h1>${a.length||'Aucune'}</h1></div></div>
    <div class="view">
-     <input id="bq" class="field sm" placeholder="Nom, ISIN ou ticker — small caps incluses" value="${esc(BQ)}" autocomplete="off"
-       oninput="BQ=this.value;clearTimeout(window.__bqT);window.__bqT=setTimeout(doBourseSearch,350)">
-     ${!S.tdKey?`<p class="err" style="min-height:auto;margin-top:var(--s2)">Aucune clé Twelve Data — renseignez-la dans Réglages pour activer les données en direct.</p>`:''}
-     ${BQloading?'<p class="muted small" style="margin-top:var(--s3)">Recherche…</p>':''}
-     ${BQ.trim().length>=2&&!BQloading?(BQres.length?`<div class="lbl" style="margin-top:var(--s4)">Résultats</div>`+BQres.map(x=>bourseRow(x,true)).join(''):'<div class="empty">Aucun résultat.</div>'):''}
-     <div class="lbl" style="margin-top:var(--s5)">Votre watchlist</div>
-     ${wl.length?wl.map(x=>bourseRow(x,false)).join(''):'<p class="muted small">Suivez une valeur, intégrée ou non à votre portefeuille, pour repérer une opportunité.</p>'}
-   </div>`;
-};
-SUB.titre=function(key){
-  const x=findTitle(key); if(!x) return backbar('Introuvable')+'<div class="view"></div>';
-  const d=TITRE_DATA[key]||{}, q=d.quote, st=d.stats;
-  const inWl=S.watchlist.some(w=>titleKey(w)===key);
-  const links=extLinks(x.n,x.isin,x.tk);
-  const na=v=>(v==null||isNaN(v))?'Indisponible':Number(v).toLocaleString('fr-FR',{maximumFractionDigits:2});
-  return `${backbar(x.n)}
-   <div class="view">
-     <div style="display:flex;align-items:baseline;gap:var(--s3)">
-       <div class="mono-big num">${q&&q.price!=null?q.price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(x.c||''):(d.loading?'…':'—')}</div>
-       ${q&&q.change!=null?`<span class="small ${q.change>=0?'up':'down'}">${q.change>=0?'+':''}${na(q.change)} %</span>`:''}
-     </div>
-     <div class="small muted">${esc(x.tk)} · ${esc(x.pl||'')}${x.isin?' · '+esc(x.isin):''}</div>
-     <div class="btnrow" style="margin-top:var(--s4)">
-       <button class="btn ${inWl?'quiet':'ember'}" data-act="${inWl?'wlDel':'wlAdd'}" data-k="${esc(key)}">${inWl?'Retirer de la watchlist':'Ajouter à la watchlist'}</button>
-       <button class="btn ghost" data-act="refreshTitre" data-k="${esc(key)}">Actualiser</button>
-     </div>
-     ${d.loading?'<p class="muted small" style="margin-top:var(--s4)">Chargement…</p>':''}
-     ${(q&&q.error)||(st&&st.error)?`<div class="alert" style="margin-top:var(--s4)"><h3>Données indisponibles</h3><p>${esc((q&&q.error)||(st&&st.error)||'')}</p></div>`:''}
-     ${st&&!st.error?`<div class="lbl" style="margin:var(--s5) 0 var(--s2)">Fondamentaux</div>
-       <div class="kv"><span>PER</span><span class="num">${na(st.per)}</span></div>
-       <div class="kv"><span>Bénéfice net par action</span><span class="num">${na(st.bna)}</span></div>
-       <div class="kv"><span>Dividende (rendement)</span><span class="num">${st.dividendeRendement!=null?pct(st.dividendeRendement,2):'Indisponible'}</span></div>
-       <div class="kv"><span>Croissance du CA (trim.)</span><span class="num">${st.croissanceCA!=null?pct(st.croissanceCA,2):'Indisponible'}</span></div>
-       <div class="kv"><span>Prévisionnel de croissance</span><span class="num">Indisponible en offre gratuite</span></div>`:''}
-     <div class="lbl" style="margin:var(--s5) 0 var(--s2)">Avis externes</div>
-     <p class="small muted">Notations propriétaires non accessibles par API : ouvrez la fiche officielle.</p>
-     <div class="btnrow">
-       <a class="btn quiet" style="text-decoration:none" href="${links.boursobank}" target="_blank" rel="noopener">BoursoBank</a>
-       <a class="btn quiet" style="text-decoration:none" href="${links.zonebourse}" target="_blank" rel="noopener">Zonebourse</a>
-     </div>
-     <a class="btn ghost" style="margin-top:var(--s2);text-decoration:none" href="${links.euronext}" target="_blank" rel="noopener">Actualités Euronext</a>
+     ${a.length?a.map(x=>`<div class="alert ${x.k}">
+        <h3>${esc(x.t)}</h3><p>${esc(x.d)}</p>
+        <div style="margin-top:var(--s2);display:flex;gap:var(--s3)">
+          ${x.draft?`<button class="chip warm" data-act="resume" data-cls="${x.draft}">Reprendre</button>`:''}
+          ${x.go?`<button class="chip" data-act="goto" data-t="${x.go[0]}" data-id="${x.go[1]}">Ouvrir</button>`:''}
+          <button class="chip" data-act="dismiss" data-id="${x.id}">Masquer</button>
+        </div></div>`).join(''):'<div class="empty">Rien à signaler. Vos données sont à jour.</div>'}
    </div>`;
 };
 
@@ -929,13 +917,15 @@ VIEW.recherche=function(){
   const q=Q.trim().toLowerCase();
   const mine=q?S.assets.filter(a=>a.name.toLowerCase().includes(q)||(a.isin||'').toLowerCase().includes(q)||(a.tk||'').toLowerCase().includes(q)):[];
   const cat=q?searchCatalog(Q).filter(c=>!S.assets.some(a=>a.isin===c.isin)):[];
+  mine.filter(a=>a.cls==='bourse'&&a.listed&&a.isin).forEach(a=>ensureFund(a.isin));
+  cat.forEach(c=>ensureFund(c.isin));
   AFTER=()=>{const i=$('#q'); if(i){i.focus({preventScroll:true}); i.setSelectionRange(i.value.length,i.value.length);} };
   return `<div class="hdr" style="padding-bottom:0"><div style="width:100%"><div class="lbl">Recherche</div>
       <input id="q" class="field sm" placeholder="Nom, ISIN ou ticker" value="${esc(Q)}" autocomplete="off" oninput="Q=this.value;render()"></div></div>
     <div class="view">
       ${!q?'<p class="muted small" style="margin-top:var(--s4)">Cherchez dans vos lignes ou dans le catalogue de titres pour en ajouter une.</p>':''}
-      ${mine.length?`<div class="lbl" style="margin-top:var(--s4)">Dans votre patrimoine</div>`+mine.map(a=>`<button class="row" data-act="openAsset" data-id="${a.id}"><span class="l"><strong>${esc(a.name)}</strong><span class="small muted">${CLASSES[bucketOf(a)].name}</span></span><span class="r"><strong class="num">${money(a._c?a._c.v:0)}</strong></span></button>`).join(''):''}
-      ${cat.length?`<div class="lbl" style="margin-top:var(--s5)">Catalogue de titres</div>`+cat.map(c=>`<button class="row" data-act="quickAdd" data-isin="${c.isin}"><span class="l"><strong>${esc(c.n)}</strong><span class="small muted">${c.tk} · ${c.isin} · ${c.pl}</span></span><span class="r"><span class="chip warm">Ajouter</span></span></button>`).join(''):''}
+      ${mine.length?`<div class="lbl" style="margin-top:var(--s4)">Dans votre patrimoine</div>`+mine.map(a=>`<button class="row" data-act="openAsset" data-id="${a.id}"><span class="l" style="display:flex;align-items:center;gap:10px">${a.cls==='bourse'&&a.listed&&a.isin?fundLogo(a.isin,28):''}<span><strong>${esc(a.name)}</strong><span class="small muted" style="display:block">${CLASSES[bucketOf(a)].name}</span></span></span><span class="r"><strong class="num">${money(a._c?a._c.v:0)}</strong></span></button>`).join(''):''}
+      ${cat.length?`<div class="lbl" style="margin-top:var(--s5)">Catalogue de titres</div>`+cat.map(c=>`<button class="row" data-act="openPreview" data-isin="${c.isin}"><span class="l" style="display:flex;align-items:center;gap:10px">${fundLogo(c.isin,28)}<span><strong>${esc(c.n)}</strong><span class="small muted" style="display:block">${c.tk} · ${c.isin} · ${c.pl}</span></span></span><span class="r"><span class="chip warm">Voir</span></span></button>`).join(''):''}
       ${q&&!mine.length&&!cat.length?'<div class="empty">Aucun résultat. Vous pouvez créer une ligne manuellement depuis Patrimoine.</div>':''}
     </div>`;
 };
@@ -962,13 +952,9 @@ VIEW.reglages=function(){
      <p class="small muted">Modifiables à la main. Chaque valorisation fige le taux appliqué au moment de la saisie, l'historique n'est donc jamais recalculé.</p>
      ${rates}
 
-     <div class="lbl" style="margin-top:var(--s5)">Bourse</div>
-     <p class="small muted">Clé API Twelve Data (données en direct dans l'onglet Bourse).</p>
-     <input class="field sm" value="${esc(S.tdKey||'')}" placeholder="Votre clé Twelve Data" onchange="ACT.setTdKey(null,this)">
-
      <div class="lbl" style="margin-top:var(--s5)">Vos données</div>
      <p class="small muted">${S.assets.length} ligne${S.assets.length>1?'s':''} · ${S.snapshots.length} instantané${S.snapshots.length>1?'s':''} · ${S.projects.length} projet${S.projects.length>1?'s':''}.</p>
-     <p class="small ${Store.mode==='mémoire'?'down':'muted'}">${Store.mode==='mémoire'?'Attention : aucun stockage durable disponible. Vos données seront perdues à la fermeture, exportez-les.':'Enregistrement sur '+(Store.mode==='appareil'?'cet appareil':'votre espace Claude')+'. Rien ne circule sur le réseau.'}</p>
+     <p class="small ${Store.mode==='mémoire'?'down':'muted'}">${Store.mode==='mémoire'?'Attention : aucun stockage durable disponible. Vos données seront perdues à la fermeture, exportez-les.':'Enregistrement sur '+(Store.mode==='appareil'?'cet appareil':'votre espace Claude')+'. Vos montants ne circulent jamais sur le réseau ; seule la recherche de titres interroge Finnhub (logos, PER, BNPA, croissance).'}</p>
      <button class="btn quiet" data-act="export">Exporter en JSON</button>
      <button class="btn quiet" data-act="import">Importer un JSON</button>
 
@@ -977,7 +963,7 @@ VIEW.reglages=function(){
      <button class="btn ghost" data-act="clearSnaps">Effacer l'historique</button>
 
      <div style="margin-top:var(--s6)"><button class="btn danger" data-act="reset">Tout réinitialiser</button></div>
-     <p class="small muted" style="margin-top:var(--s5);text-align:center">Prototype · données locales · aucun appel réseau</p>
+     <p class="small muted" style="margin-top:var(--s5);text-align:center">Prototype · montants stockés localement · Finnhub pour les données de titres</p>
    </div>`;
 };
 
@@ -1281,15 +1267,6 @@ const ACT={
   more:()=>{ pageN+=30; render(); },
   range:d=>{ RANGE=+d.d; render(); },
   dismiss:d=>{ S.dismissed.push(d.id); persist(); render(); },
-  dropDraft:d=>{ delete S.drafts[d.cls]; persist(); render(); },
-
-  /* bourse */
-  openTitre:d=>push('titre',d.k),
-  wlAdd:d=>{ const x=findTitle(d.k); if(!x) return;
-    if(!S.watchlist.some(w=>titleKey(w)===d.k)){ S.watchlist.push(Object.assign({},x,{addedDate:todayISO()})); persist(); }
-    render(); toast('Ajouté à la watchlist.'); },
-  wlDel:d=>{ S.watchlist=S.watchlist.filter(w=>titleKey(w)!==d.k); persist(); render(); toast('Retiré de la watchlist.'); },
-  refreshTitre:d=>loadTitre(d.k),
 
   /* onboarding */
   obCcy:d=>{ ob.base=d.c; renderOnboarding(); },
@@ -1424,12 +1401,15 @@ const ACT={
 
   /* recherche */
   quickAdd:d=>{ startWizard('bourse',false); W.data.query=CATALOG.find(c=>c.isin===d.isin).n; W.data.isin=d.isin; W.data.manual=false; W.step=2; drawWizard(); },
+  openPreview:d=>{ push('preview',d.isin); },
+  previewAdd:d=>{ stack=[]; startWizard('bourse',false); W.data.query=CATALOG.find(c=>c.isin===d.isin).n; W.data.isin=d.isin; W.data.manual=false; W.step=2; drawWizard(); },
+  ficheTab:d=>{ FICHE_TAB=d.t; render(); },
+  refreshFund:d=>{ delete FUND[d.isin]; render(); },
 
   /* réglages */
   setName:(_,el)=>{ S.user.name=el.value.trim(); persist(); toast('Prénom enregistré.'); },
   setBase:(_,el)=>{ S.user.base=el.value; persist(); render(); toast('Affichage en '+el.value+'.'); },
   setTheme:d=>{ S.theme=d.t; applyTheme(); persist(); render(); },
-  setTdKey:(_,el)=>{ S.tdKey=el.value.trim(); persist(); toast('Clé Twelve Data enregistrée.'); },
   setRate:(d,el)=>{ const v=num(el.value); if(!v||v<=0){ toast('Taux invalide.'); render(); return; }
     S.rates[d.rate]=v; rebuildTotals(); persist(); render(); toast('Taux mis à jour.'); },
   export:()=>{
