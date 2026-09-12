@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#FFF9EB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Amalthée">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Gestion de patrimoine, données locales.">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Amalthée</title>
+<style>
+/* ============================================================
+   AMALTHÉE — tokens
+   ============================================================ */
+:root{
+  --vanilla:#FFF9EB;
+  --sage:#9FB2AC;
+  --blood:#5D0D18;
+  --ember:#D96A3E;
+
+  --bg:#FFF9EB;
+  --surface:#FBF2DF;
+  --surface-2:#F5EAD4;
+  --ink:#1E1712;
+  --ink-soft:#6E655B;
+  --rule:#DCD2BC;
+  --accent:#5D0D18;
+  --accent-soft:#8E2233;
+  --warm:#D96A3E;
+  --calm:#9FB2AC;
+  --calm-deep:#6F8781;
+  --on-accent:#FFF9EB;
+
+  --f:"Helvetica Neue","Inter","Segoe UI",Arial,system-ui,sans-serif;
+  --t1:11px; --t2:13px; --t3:15px; --t4:18px; --t5:24px; --t6:34px; --t7:52px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r:3px;
+  --tab-h:calc(60px + env(safe-area-inset-bottom,0px));
+  --dur:.22s;
+}
+:root[data-theme="dark"]{
+  --bg:#141010;
+  --surface:#1D1717;
+  --surface-2:#262020;
+  --ink:#FFF9EB;
+  --ink-soft:#9C918A;
+  --rule:#332A2A;
+  --accent:#8E2233;
+  --accent-soft:#B03144;
+  --warm:#D96A3E;
+  --calm:#9FB2AC;
+  --calm-deep:#9FB2AC;
+  --on-accent:#FFF9EB;
+}
+@media (prefers-reduced-motion:reduce){ :root{ --dur:0s } *{animation-duration:.001s!important;transition-duration:.001s!important} }
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:var(--f); font-size:var(--t3); line-height:1.45;
+  -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
+  overscroll-behavior-y:none;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+:focus-visible{outline:2px solid var(--warm);outline-offset:2px;border-radius:2px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* [hidden] doit l'emporter sur les display: posés par id */
+[hidden]{display:none!important}
+
+/* ---------- app shell ---------- */
+#app{min-height:100dvh;display:flex;flex-direction:column}
+.screen{display:none;flex:1;flex-direction:column}
+.screen.on{display:flex}
+.view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 var(--s4);padding-bottom:calc(var(--tab-h) + var(--s6))}
+.view.nopad{padding-left:0;padding-right:0}
+
+/* ---------- typography ---------- */
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.02em}
+h1{font-size:var(--t6);line-height:1.1}
+h2{font-size:var(--t5);line-height:1.15}
+h3{font-size:var(--t4)}
+p{margin:0 0 var(--s3)}
+.lbl{font-size:var(--t1);color:var(--calm-deep);letter-spacing:.04em;font-weight:500}
+.muted{color:var(--ink-soft)}
+.small{font-size:var(--t2)}
+.mono-big{font-size:var(--t7);font-weight:700;letter-spacing:-.045em;line-height:1;color:var(--accent)}
+
+/* ---------- header ---------- */
+.hdr{padding:calc(env(safe-area-inset-top,0px) + var(--s5)) var(--s4) var(--s3);display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s3)}
+.hdr .sub{font-size:var(--t2);color:var(--ink-soft)}
+.backbar{display:flex;align-items:center;gap:var(--s3);padding:calc(env(safe-area-inset-top,0px) + var(--s4)) var(--s4) var(--s2)}
+.back{font-size:var(--t2);color:var(--calm-deep);font-weight:500;display:flex;align-items:center;gap:6px}
+.back svg{width:14px;height:14px}
+
+/* ---------- rules & rows ---------- */
+.rule{height:1px;background:var(--rule);border:0;margin:var(--s4) 0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s4) 0;border-bottom:1px solid var(--rule);width:100%;text-align:left}
+.row:last-child{border-bottom:0}
+.row .l{min-width:0}
+.row .r{text-align:right;flex-shrink:0}
+.row strong{display:block;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .r strong{font-size:var(--t4)}
+
+/* ---------- class cards (ledger, not SaaS cards) ---------- */
+.classcard{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--calm);background:var(--surface);padding:var(--s4);margin-bottom:var(--s2);border-radius:0 var(--r) var(--r) 0}
+.classcard.filled{border-left-color:var(--accent)}
+.classcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s3)}
+.classcard h3{font-size:var(--t3);font-weight:700}
+.classcard .val{font-size:var(--t5);font-weight:700;letter-spacing:-.03em;color:var(--accent)}
+.classcard .hint{font-size:var(--t2);color:var(--ink-soft);margin-top:2px}
+.classcard .meta{display:flex;gap:var(--s3);margin-top:var(--s2);font-size:var(--t2);color:var(--ink-soft)}
+.cta-inline{display:inline-block;margin-top:var(--s3);font-size:var(--t2);font-weight:700;color:var(--warm)}
+
+/* ---------- buttons ---------- */
+.btn{display:block;width:100%;text-align:center;padding:15px var(--s4);background:var(--accent);color:var(--on-accent);font-weight:700;font-size:var(--t3);border-radius:var(--r);letter-spacing:-.01em}
+.btn:disabled{opacity:.35}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+.btn.ember{background:var(--warm);color:#231208}
+.btn.quiet{background:var(--surface-2);color:var(--ink)}
+.btn.danger{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn+.btn{margin-top:var(--s2)}
+.btnrow{display:flex;gap:var(--s2)}
+.btnrow .btn{flex:1}
+.chip{display:inline-block;padding:5px 10px;border:1px solid var(--rule);border-radius:99px;font-size:var(--t2);font-weight:500;background:var(--surface)}
+.chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.chip.warm{background:transparent;color:var(--warm);border-color:var(--warm)}
+
+/* ---------- form ---------- */
+.field{width:100%;background:transparent;border:0;border-bottom:2px solid var(--rule);padding:var(--s3) 0;font-size:var(--t6);font-weight:700;letter-spacing:-.03em}
+.field:focus{border-bottom-color:var(--accent);outline:none}
+.field::placeholder{color:var(--rule);font-weight:400}
+.field.sm{font-size:var(--t4);font-weight:500;letter-spacing:0}
+select.field{font-size:var(--t4);font-weight:500;letter-spacing:0;border:1px solid var(--rule);border-radius:var(--r);padding:var(--s3);background:var(--surface)}
+.helper{font-size:var(--t2);color:var(--ink-soft);margin-top:var(--s2)}
+.err{font-size:var(--t2);color:var(--warm);margin-top:var(--s2);font-weight:500;min-height:18px}
+
+/* ---------- wizard ---------- */
+.wiz{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column}
+.wiz.on{display:flex}
+.wiz-top{padding:calc(env(safe-area-inset-top,0px) + var(--s4)) var(--s4) 0}
+.prog{height:2px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:var(--s3)}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width var(--dur) ease}
+.wiz-body{flex:1;overflow-y:auto;padding:var(--s6) var(--s4) var(--s4);display:flex;flex-direction:column}
+.wiz-q{font-size:var(--t5);font-weight:700;letter-spacing:-.025em;margin-bottom:var(--s5);max-width:22ch}
+.wiz-foot{padding:var(--s3) var(--s4) calc(env(safe-area-inset-bottom,0px) + var(--s4));border-top:1px solid var(--rule)}
+.opt{display:block;width:100%;text-align:left;padding:var(--s4);border:1px solid var(--rule);border-radius:var(--r);margin-bottom:var(--s2);background:var(--surface)}
+.opt.on{border-color:var(--accent);background:var(--surface-2)}
+.opt strong{display:block;font-weight:700}
+.opt span{font-size:var(--t2);color:var(--ink-soft)}
+
+/* ---------- tabbar ---------- */
+.tabbar{position:fixed;left:0;right:0;bottom:0;height:var(--tab-h);padding-bottom:env(safe-area-inset-bottom,0px);display:flex;background:var(--bg);border-top:1px solid var(--rule);z-index:40}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink-soft);font-size:10px;font-weight:500}
+.tabbar button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button.on{color:var(--accent)}
+.tabbar.hide{display:none}
+
+/* ---------- chart ---------- */
+.chart{width:100%;height:132px;display:block;margin:var(--s3) 0}
+.chart path.line{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart path.area{fill:var(--accent);opacity:.07;stroke:none}
+.chart line.grid{stroke:var(--rule);stroke-width:1}
+
+/* ---------- misc ---------- */
+.sheet{position:fixed;inset:0;z-index:70;display:none}
+.sheet.on{display:block}
+.sheet .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.sheet .panel{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:12px 12px 0 0;padding:var(--s5) var(--s4) calc(env(safe-area-inset-bottom,0px) + var(--s4));max-height:88dvh;overflow-y:auto}
+.toast{position:fixed;left:var(--s4);right:var(--s4);bottom:calc(var(--tab-h) + var(--s3));background:var(--ink);color:var(--bg);padding:var(--s3) var(--s4);border-radius:var(--r);font-size:var(--t2);font-weight:500;z-index:90;opacity:0;transform:translateY(6px);transition:opacity var(--dur),transform var(--dur);pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.empty{padding:var(--s6) 0;text-align:center;color:var(--ink-soft)}
+.tag{font-size:var(--t1);font-weight:700;color:var(--calm-deep)}
+.up{color:var(--calm-deep)}
+.down{color:var(--warm)}
+.alert{border-left:3px solid var(--warm);background:var(--surface);padding:var(--s3) var(--s4);margin-bottom:var(--s2);border-radius:0 var(--r) var(--r) 0}
+.alert.calm{border-left-color:var(--calm)}
+.alert h3{font-size:var(--t3)}
+.alert p{margin:2px 0 0;font-size:var(--t2);color:var(--ink-soft)}
+.kv{display:flex;justify-content:space-between;padding:var(--s2) 0;border-bottom:1px solid var(--rule);font-size:var(--t3)}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-soft)}
+.kv span:last-child{font-weight:700}
+.seg{display:flex;border:1px solid var(--rule);border-radius:var(--r);overflow:hidden}
+.seg button{flex:1;padding:10px;font-size:var(--t2);font-weight:600;color:var(--ink-soft)}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.more{display:block;width:100%;padding:var(--s3);text-align:center;font-size:var(--t2);font-weight:700;color:var(--calm-deep)}
+
+/* ---------- intro ---------- */
+#intro{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column}
+#intro.out{animation:fade .5s ease forwards}
+@keyframes fade{to{opacity:0;visibility:hidden}}
+#horn{width:min(74vw,300px);height:auto}
+#horn .stroke{fill:none;stroke:var(--accent);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#horn .seed{fill:var(--calm);opacity:0}
+#horn .seed.e{fill:var(--warm)}
+.draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.15s cubic-bezier(.5,.05,.2,1) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{0%{opacity:0;transform:translateY(-14px) scale(.4)}60%{opacity:1;transform:translateY(2px) scale(1.06)}100%{opacity:1;transform:none}}
+#greet{position:fixed;inset:0;z-index:99;background:var(--bg);display:none;align-items:center;justify-content:center;padding:var(--s6)}
+#greet.on{display:flex}
+#greet h1{font-size:var(--t6);letter-spacing:-.035em;animation:rise .6s ease forwards}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#greet.out{animation:fade .55s ease .9s forwards}
+.skip{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + var(--s5));left:0;right:0;text-align:center;font-size:var(--t2);color:var(--ink-soft)}
+</style>
+</head>
+<body>
+
+<!-- =========== INTRO =========== -->
+<div id="intro" style="display:none">
+  <svg id="horn" viewBox="0 0 300 220" aria-label="Corne d'abondance">
+    <g>
+      <path class="stroke" id="hornBody" d="M232 78c-18-30-58-44-96-33-34 10-58 34-74 60-9 15-22 25-38 27 18 8 34 4 47-4 4 20 18 36 40 42 40 11 84-6 108-38"/>
+      <path class="stroke" id="hornLip" d="M232 78c9 14 12 30 9 45-3 15-11 28-22 38"/>
+      <path class="stroke" id="hornCurl" d="M24 132c-6-8-6-19 1-27 6-7 17-9 25-4"/>
+    </g>
+    <g id="seeds">
+      <circle class="seed" cx="215" cy="58" r="9"/>
+      <circle class="seed e" cx="243" cy="44" r="6"/>
+      <circle class="seed" cx="196" cy="36" r="7"/>
+      <circle class="seed e" cx="224" cy="22" r="5"/>
+      <circle class="seed" cx="252" cy="72" r="5"/>
+      <circle class="seed e" cx="176" cy="54" r="4"/>
+    </g>
+  </svg>
+  <div class="skip">Toucher pour passer</div>
+</div>
+
+<div id="greet"><h1 id="greetTxt"></h1></div>
+
+<!-- =========== APP =========== -->
+<div id="app" style="display:none"></div>
+
+<nav class="tabbar hide" id="tabbar"></nav>
+<div class="toast" id="toast"></div>
+<div class="sheet" id="sheet"><div class="scrim" data-close="1"></div><div class="panel" id="sheetPanel"></div></div>
+<div class="wiz" id="wiz"></div>
+
+<script>
+"use strict";
+/* Sur mobile il n'y a pas de console : toute erreur devient visible à l'écran. */
+window.addEventListener('error',ev=>{
+  let b=document.getElementById('crash');
+  if(!b){ b=document.createElement('div'); b.id='crash';
+    b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#5D0D18;color:#FFF9EB;font:12px/1.4 -apple-system,sans-serif;padding:12px;white-space:pre-wrap';
+    document.body.appendChild(b); }
+  b.textContent='Erreur : '+(ev.message||ev.error)+'\n'+(ev.filename||'')+' ligne '+(ev.lineno||'?');
+});
+
+/* ============================================================
+   1. PERSISTANCE  (window.storage uniquement, jamais localStorage)
+   ============================================================ */
+const KEY='amalthee:state';
+const MEM={v:null};
+/* Trois niveaux, dans cet ordre :
+   1. window.storage  — quand l'app tourne dans Claude
+   2. localStorage    — quand l'app tourne en autonomie sur le téléphone
+   3. mémoire         — repli silencieux si les deux sont indisponibles      */
+const HAS_WS = !!(typeof window!=='undefined' && window.storage && window.storage.get);
+function hasLS(){ try{ const k='__a'; window.localStorage.setItem(k,'1'); window.localStorage.removeItem(k); return true; }catch(e){ return false; } }
+const HAS_LS = !HAS_WS && hasLS();
+const Store={
+  mode: HAS_WS?'claude':(HAS_LS?'appareil':'mémoire'),
+  async load(){
+    if(HAS_WS){ try{ const r=await window.storage.get(KEY,false); if(r&&r.value) return JSON.parse(r.value); }catch(e){} }
+    if(HAS_LS){ try{ const v=window.localStorage.getItem(KEY); if(v) return JSON.parse(v); }catch(e){} }
+    return MEM.v?JSON.parse(MEM.v):null;
+  },
+  async save(obj){
+    const str=JSON.stringify(obj,(k,v)=>k==='_c'?undefined:v);
+    MEM.v=str;
+    if(HAS_WS){ try{ await window.storage.set(KEY,str,false); return; }catch(e){} }
+    if(HAS_LS){ try{ window.localStorage.setItem(KEY,str); }catch(e){ toast('Mémoire de l\u2019appareil pleine, pensez à exporter.'); } }
+  },
+  async wipe(){
+    MEM.v=null;
+    if(HAS_WS){ try{ await window.storage.delete(KEY,false); }catch(e){} }
+    if(HAS_LS){ try{ window.localStorage.removeItem(KEY); }catch(e){} }
+  }
+};
+
+/* ============================================================
+   2. ÉTAT
+   ============================================================ */
+const CLASSES={
+  bourse:{name:'Bourse',teach:'Actions, ETF, obligations',cta:'Ajouter une ligne'},
+  immobilier:{name:'Immobilier',teach:'Résidence, locatif, SCPI',cta:'Ajouter un bien'},
+  enveloppes:{name:'Enveloppes',teach:'PEA, CTO, assurance-vie',cta:'Ajouter une enveloppe'},
+  liquidites:{name:'Liquidités',teach:'Comptes et livrets',cta:'Ajouter un compte'}
+};
+const ENV_TAX={PEA:.172,CTO:.30,AV:.247};
+const ENV_NAME={PEA:'PEA',CTO:'Compte-titres',AV:'Assurance-vie'};
+const CCY={EUR:{s:'€',n:'Euro'},USD:{s:'$',n:'Dollar américain'},CHF:{s:'CHF',n:'Franc suisse'},GBP:{s:'£',n:'Livre sterling'}};
+
+function blank(){
+  return {
+    v:1,
+    onboarded:false,
+    user:{name:'',base:'EUR'},
+    theme:'system',
+    /* taux : valeur en EUR d'une unité de devise */
+    rates:{EUR:1,USD:0.92,CHF:1.06,GBP:1.17},
+    assets:[], lots:[], liabilities:[], envelopes:[], projects:[],
+    watchlist:[],
+    tdKey:'6f0d215bf4844d408da2003d9b3a93d4',
+    snapshots:[],
+    drafts:{},
+    dismissed:[],
+    totals:{total:0,byClass:{bourse:0,immobilier:0,enveloppes:0,liquidites:0},debt:0},
+    lastOpen:null
+  };
+}
+let S=blank();
+let dirty=false;
+function persist(){ dirty=true; clearTimeout(persist._t); persist._t=setTimeout(()=>{dirty=false;Store.save(S);},120); }
+
+/* ============================================================
+   3. UTILITAIRES
+   ============================================================ */
+const uid=()=>Math.random().toString(36).slice(2,10);
+const $=s=>document.querySelector(s);
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function fmtDate(d){ if(!d) return '—'; const x=new Date(d+'T00:00:00');
+  return x.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:x.getFullYear()===new Date().getFullYear()?undefined:'numeric'}); }
+function daysSince(d){ if(!d) return 9999; return Math.floor((Date.now()-new Date(d+'T00:00:00').getTime())/86400000); }
+
+/* devise : tout pivote par l'euro, le taux est figé à l'écriture */
+const fxNow=c=>S.rates[c]||1;
+const toEUR=(amt,ccy,frozen)=>amt*(frozen!=null?frozen:fxNow(ccy));
+const eurToBase=e=>e/(S.rates[S.user.base]||1);
+function money(eur,opt){
+  const v=eurToBase(eur), s=CCY[S.user.base].s, o=opt||{};
+  const dec=o.dec!=null?o.dec:(Math.abs(v)>=1000?0:2);
+  const n=v.toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  return (o.sign&&v>0?'+':'')+n+' '+s;
+}
+function pct(x,d){ return (x*100).toLocaleString('fr-FR',{minimumFractionDigits:d==null?1:d,maximumFractionDigits:d==null?1:d})+' %'; }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),2200); }
+function num(v){ const n=parseFloat(String(v).replace(',','.').replace(/\s/g,'')); return isNaN(n)?null:n; }
+
+/* ============================================================
+   4. CATALOGUE LOCAL (aucun appel réseau)
+   ============================================================ */
+const CATALOG=[
+ {n:"LVMH",isin:"FR0000121014",tk:"MC",pl:"Euronext Paris",c:"EUR",sec:"Luxe",p:"France",px:642.30},
+ {n:"TotalEnergies",isin:"FR0000120271",tk:"TTE",pl:"Euronext Paris",c:"EUR",sec:"Énergie",p:"France",px:58.42},
+ {n:"Air Liquide",isin:"FR0000120073",tk:"AI",pl:"Euronext Paris",c:"EUR",sec:"Chimie",p:"France",px:172.85},
+ {n:"Sanofi",isin:"FR0000120578",tk:"SAN",pl:"Euronext Paris",c:"EUR",sec:"Santé",p:"France",px:94.16},
+ {n:"BNP Paribas",isin:"FR0000131104",tk:"BNP",pl:"Euronext Paris",c:"EUR",sec:"Banque",p:"France",px:63.78},
+ {n:"Airbus",isin:"NL0000235190",tk:"AIR",pl:"Euronext Paris",c:"EUR",sec:"Aéronautique",p:"Pays-Bas",px:158.94},
+ {n:"Hermès International",isin:"FR0000052292",tk:"RMS",pl:"Euronext Paris",c:"EUR",sec:"Luxe",p:"France",px:2184.00},
+ {n:"Schneider Electric",isin:"FR0000121972",tk:"SU",pl:"Euronext Paris",c:"EUR",sec:"Industrie",p:"France",px:232.40},
+ {n:"L'Oréal",isin:"FR0000120321",tk:"OR",pl:"Euronext Paris",c:"EUR",sec:"Cosmétique",p:"France",px:381.55},
+ {n:"Vinci",isin:"FR0000125486",tk:"DG",pl:"Euronext Paris",c:"EUR",sec:"Construction",p:"France",px:117.20},
+ {n:"AXA",isin:"FR0000120628",tk:"CS",pl:"Euronext Paris",c:"EUR",sec:"Assurance",p:"France",px:37.94},
+ {n:"Danone",isin:"FR0000120644",tk:"BN",pl:"Euronext Paris",c:"EUR",sec:"Agroalimentaire",p:"France",px:69.08},
+ {n:"Safran",isin:"FR0000073272",tk:"SAF",pl:"Euronext Paris",c:"EUR",sec:"Aéronautique",p:"France",px:241.70},
+ {n:"Michelin",isin:"FR001400AJ45",tk:"ML",pl:"Euronext Paris",c:"EUR",sec:"Industrie",p:"France",px:33.61},
+ {n:"Orange",isin:"FR0000133308",tk:"ORA",pl:"Euronext Paris",c:"EUR",sec:"Télécoms",p:"France",px:11.42},
+ {n:"Carrefour",isin:"FR0000120172",tk:"CA",pl:"Euronext Paris",c:"EUR",sec:"Distribution",p:"France",px:13.05},
+ {n:"Stellantis",isin:"NL00150001Q9",tk:"STLAP",pl:"Euronext Paris",c:"EUR",sec:"Automobile",p:"Pays-Bas",px:9.87},
+ {n:"Amundi MSCI World UCITS ETF",isin:"LU1681043599",tk:"CW8",pl:"Euronext Paris",c:"EUR",sec:"ETF actions monde",p:"Luxembourg",px:534.60},
+ {n:"Amundi S&P 500 UCITS ETF PEA",isin:"FR0013412285",tk:"PE500",pl:"Euronext Paris",c:"EUR",sec:"ETF actions US",p:"France",px:38.94},
+ {n:"Lyxor PEA Monde MSCI World",isin:"FR0011869353",tk:"EWLD",pl:"Euronext Paris",c:"EUR",sec:"ETF actions monde",p:"France",px:32.18},
+ {n:"iShares Core MSCI EM IMI",isin:"IE00BKM4GZ66",tk:"EIMI",pl:"Euronext Amsterdam",c:"EUR",sec:"ETF pays émergents",p:"Irlande",px:36.72},
+ {n:"OAT France 2032",isin:"FR0014007L00",tk:"OAT32",pl:"Euronext Paris",c:"EUR",sec:"Obligation d'État",p:"France",px:88.40},
+ {n:"Apple",isin:"US0378331005",tk:"AAPL",pl:"NASDAQ",c:"USD",sec:"Technologie",p:"États-Unis",px:229.87},
+ {n:"Microsoft",isin:"US5949181045",tk:"MSFT",pl:"NASDAQ",c:"USD",sec:"Technologie",p:"États-Unis",px:441.20},
+ {n:"NVIDIA",isin:"US67066G1040",tk:"NVDA",pl:"NASDAQ",c:"USD",sec:"Semi-conducteurs",p:"États-Unis",px:132.65},
+ {n:"Alphabet",isin:"US02079K3059",tk:"GOOGL",pl:"NASDAQ",c:"USD",sec:"Technologie",p:"États-Unis",px:172.44},
+ {n:"Amazon",isin:"US0231351067",tk:"AMZN",pl:"NASDAQ",c:"USD",sec:"Distribution",p:"États-Unis",px:186.31},
+ {n:"ASML Holding",isin:"NL0010273215",tk:"ASML",pl:"Euronext Amsterdam",c:"EUR",sec:"Semi-conducteurs",p:"Pays-Bas",px:685.90},
+ {n:"Nestlé",isin:"CH0038863350",tk:"NESN",pl:"SIX Swiss",c:"CHF",sec:"Agroalimentaire",p:"Suisse",px:83.06},
+ {n:"Roche Holding",isin:"CH0012032048",tk:"ROG",pl:"SIX Swiss",c:"CHF",sec:"Santé",p:"Suisse",px:262.10},
+ {n:"AstraZeneca",isin:"GB0009895292",tk:"AZN",pl:"London SE",c:"GBP",sec:"Santé",p:"Royaume-Uni",px:121.44},
+ {n:"Shell",isin:"GB00BP6MXD84",tk:"SHEL",pl:"London SE",c:"GBP",sec:"Énergie",p:"Royaume-Uni",px:27.63},
+ {n:"Inventiva",isin:"FR0013233012",tk:"IVA",pl:"Euronext Paris",c:"EUR",sec:"Biotechnologie",p:"France",px:5.10},
+ {n:"STIF",isin:"FR001400MDW2",tk:"ALSTI",pl:"Euronext Growth Paris",c:"EUR",sec:"Équipement industriel",p:"France",px:48.00},
+ {n:"2CRSi",isin:"FR0013341781",tk:"AL2SI",pl:"Euronext Growth Paris",c:"EUR",sec:"Services informatiques",p:"France",px:8.00},
+ {n:"Kalray",isin:"FR0010722819",tk:"ALKAL",pl:"Euronext Growth Paris",c:"EUR",sec:"Semi-conducteurs",p:"France",px:6.20},
+ {n:"Abivax",isin:"FR0012333284",tk:"ABVX",pl:"Euronext Paris",c:"EUR",sec:"Biotechnologie",p:"France",px:0}
+];
+/* Le catalogue local ci-dessus sert de repli hors-ligne et de suggestions rapides.
+   Pour toute autre small cap française, la recherche de l'onglet Bourse interroge
+   en direct la base Twelve Data (tdSymbolSearch), qui n'est pas limitée à cette liste. */
+function searchCatalog(q){
+  const t=q.trim().toLowerCase(); if(t.length<1) return [];
+  return CATALOG.filter(x=>x.n.toLowerCase().includes(t)||x.isin.toLowerCase().includes(t)||x.tk.toLowerCase().includes(t)).slice(0,8);
+}
+
+/* ============================================================
+   4bis. BOURSE — Twelve Data (cours + fondamentaux à la demande)
+   Aucun appel n'est déclenché automatiquement : uniquement au clic
+   sur « Actualiser » ou à l'ouverture d'une fiche. Rien n'est mis
+   en cache dans l'état persistant (données toujours fraîches).
+   ============================================================ */
+const TD_BASE='https://api.twelvedata.com';
+async function tdGet(path,params){
+  const key=(S.tdKey||'').trim();
+  if(!key) return {error:'Aucune clé Twelve Data renseignée dans Réglages.'};
+  const qs=new URLSearchParams(Object.assign({},params,{apikey:key})).toString();
+  try{
+    const r=await fetch(`${TD_BASE}/${path}?${qs}`);
+    const j=await r.json();
+    if(j && j.status==='error') return {error:j.message||'Erreur Twelve Data.'};
+    if(j && j.code && j.code!==200 && j.message) return {error:j.message};
+    return j;
+  }catch(e){ return {error:'Réseau indisponible.'}; }
+}
+/* recherche libre de titres (pas limitée au catalogue local) */
+async function tdSymbolSearch(q){
+  if(!q||q.trim().length<1) return [];
+  const j=await tdGet('symbol_search',{symbol:q});
+  if(j.error||!j.data) return [];
+  return j.data.filter(x=>x.instrument_type==='Common Stock').slice(0,10);
+}
+async function tdQuote(symbol,exchange){
+  const j=await tdGet('quote',{symbol,...(exchange?{mic_code:exchange}:{})});
+  if(j.error) return j;
+  return {price:num(j.close),change:num(j.percent_change),name:j.name,currency:j.currency,exchange:j.exchange};
+}
+async function tdStatistics(symbol,exchange){
+  const j=await tdGet('statistics',{symbol,...(exchange?{mic_code:exchange}:{})});
+  if(j.error) return j;
+  const st=j.statistics||{};
+  const val=st.valuations_metrics||{}, fin=st.financials||{}, div=st.dividends_and_splits||{}, growth=fin.income_statement||{};
+  return {
+    per:val.trailing_pe??val.forward_pe??null,
+    bna:fin.earnings_per_share??null,
+    dividendeRendement:div.forward_annual_dividend_yield??null,
+    dividendeMontant:div.forward_annual_dividend_rate??null,
+    croissanceCA:fin.quarterly_revenue_growth??null,
+    marge:fin.profit_margin??null
+  };
+}
+function extLinks(name,isin,tk){
+  const q=encodeURIComponent(name||isin||tk||'');
+  return {
+    boursobank:`https://www.boursobank.com/bourse/recherche/?query=${q}`,
+    zonebourse:`https://www.zonebourse.com/recherche/?q=${q}`,
+    euronext:`https://live.euronext.com/en/search?query=${encodeURIComponent(isin||name||tk||'')}`
+  };
+}
+
+/* ============================================================
+   5. MODÈLE — totaux maintenus de façon incrémentale
+   ============================================================ */
+function lotsOf(id){ return S.lots.filter(l=>l.assetId===id); }
+function qtyOf(id){ return lotsOf(id).reduce((n,l)=>n+l.qty,0); }
+
+function assetValueEUR(a){
+  if(a.cls==='bourse'){
+    const q=qtyOf(a.id), p=a.px||{};
+    return q*(p.value||0)*(p.fx!=null?p.fx:fxNow(a.ccy));
+  }
+  if(a.cls==='immobilier') return (a.value||0)*(a.fx!=null?a.fx:fxNow(a.ccy));
+  if(a.cls==='liquidites') return (a.balance||0)*(a.fx!=null?a.fx:fxNow(a.ccy));
+  if(a.cls==='enveloppes') return (a.cash||0)*(a.fx!=null?a.fx:fxNow(a.ccy));
+  return 0;
+}
+function assetCostEUR(a){
+  if(a.cls==='bourse') return lotsOf(a.id).reduce((n,l)=>n+(l.qty*l.price+ (l.fees||0))*(l.fx!=null?l.fx:fxNow(l.ccy)),0);
+  if(a.cls==='immobilier') return ((a.buyPrice||0)+(a.fees||0)+(a.works||0))*(a.fx!=null?a.fx:fxNow(a.ccy));
+  return assetValueEUR(a);
+}
+function bucketOf(a){ return a.cls==='bourse' ? (a.envId?'enveloppes':'bourse') : a.cls; }
+
+/* recalcule un seul actif et ajuste les agrégats par delta */
+function touch(a){
+  const prev=a._c;
+  if(prev){ S.totals.byClass[prev.b]-=prev.v; S.totals.total-=prev.v; }
+  const v=assetValueEUR(a), c=assetCostEUR(a), b=bucketOf(a);
+  a._c={v,c,b};
+  S.totals.byClass[b]=(S.totals.byClass[b]||0)+v;
+  S.totals.total+=v;
+  persist();
+}
+function touchDebt(){
+  S.totals.debt=S.liabilities.reduce((n,l)=>n+(l.amount||0),0);
+}
+function rebuildTotals(){
+  S.totals={total:0,byClass:{bourse:0,immobilier:0,enveloppes:0,liquidites:0},debt:0};
+  S.assets.forEach(a=>{ a._c=null; touch(a); });
+  touchDebt();
+}
+const netWorth=()=>S.totals.total-S.totals.debt;
+const assetById=id=>S.assets.find(a=>a.id===id);
+const assetsIn=cls=>S.assets.filter(a=>bucketOf(a)===cls);
+
+/* fiscalité latente par enveloppe */
+function envTax(env){
+  const inside=S.assets.filter(a=>a.envId===env.id);
+  const val=inside.reduce((n,a)=>n+(a._c?a._c.v:0),0)+(env._c?env._c.v:0);
+  const cost=inside.reduce((n,a)=>n+(a._c?a._c.c:0),0)+(env._c?env._c.v:0);
+  const gain=val-cost, rate=ENV_TAX[env.kind]||0;
+  return {val,cost,gain,rate,tax:gain>0?gain*rate:0,net:val-(gain>0?gain*rate:0)};
+}
+function taxTotal(){ return assetsIn('enveloppes').filter(a=>a.cls==='enveloppes').reduce((n,e)=>n+envTax(e).tax,0); }
+
+/* ============================================================
+   6. SNAPSHOTS
+   ============================================================ */
+function snapshotToday(){
+  const d=todayISO(), t=netWorth();
+  const b=Object.assign({},S.totals.byClass);
+  const i=S.snapshots.findIndex(x=>x.d===d);
+  if(i>=0) S.snapshots[i]={d,t,b}; else S.snapshots.push({d,t,b});
+  S.snapshots.sort((x,y)=>x.d<y.d?-1:1);
+  if(S.snapshots.length>2000) S.snapshots=S.snapshots.slice(-2000);
+  persist();
+}
+function series(days){
+  let a=S.snapshots;
+  if(days){ const cut=new Date(Date.now()-days*86400000).toISOString().slice(0,10); a=a.filter(x=>x.d>=cut); }
+  const MAX=180;
+  if(a.length<=MAX) return a;
+  const step=a.length/MAX, out=[];
+  for(let i=0;i<MAX;i++) out.push(a[Math.floor(i*step)]);
+  out.push(a[a.length-1]);
+  return out;
+}
+function makeDemoHistory(){
+  const n=270, base=Math.max(netWorth(),1)||120000, out=[];
+  let v=base*0.78;
+  for(let i=n;i>=0;i--){
+    const d=new Date(Date.now()-i*86400000).toISOString().slice(0,10);
+    v=v*(1+(Math.sin(i/17)*0.004)+(Math.random()-0.47)*0.006);
+    if(i%23===0) v*=0.988;
+    out.push({d,t:Math.round(v),b:Object.assign({},S.totals.byClass)});
+  }
+  const k=base/out[out.length-1].t;
+  out.forEach(x=>x.t=Math.round(x.t*k));
+  S.snapshots=out; persist();
+}
+
+/* ============================================================
+   7. THÈME
+   ============================================================ */
+const mq=window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(){
+  const dark = S.theme==='dark' || (S.theme==='system' && mq.matches);
+  document.documentElement.dataset.theme = dark?'dark':'light';
+  const m=document.querySelector('meta[name=theme-color]'); if(m) m.content = dark?'#141010':'#FFF9EB';
+}
+mq.addEventListener('change',()=>{ if(S.theme==='system') applyTheme(); });
+
+/* ============================================================
+   8. NAVIGATION
+   ============================================================ */
+const TABS=[
+  {k:'patrimoine',l:'Patrimoine',i:'<path d="M3 20V9l9-6 9 6v11"/><path d="M9 20v-6h6v6"/>'},
+  {k:'projets',l:'Projets',i:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2"/>'},
+  {k:'bourse',l:'Bourse',i:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 6h6v6"/>'},
+  {k:'recherche',l:'Recherche',i:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'},
+  {k:'reglages',l:'Réglages',i:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/>'}
+];
+let TAB='patrimoine';
+let stack=[];   /* pile de sous-écrans : {type,id} */
+
+function drawTabs(){
+  $('#tabbar').innerHTML=TABS.map(t=>
+    `<button data-tab="${t.k}" class="${t.k===TAB&&!stack.length?'on':''}" aria-label="${t.l}">
+      <svg viewBox="0 0 24 24">${t.i}</svg><span>${t.l}</span></button>`).join('');
+}
+function go(tab){ TAB=tab; stack=[]; render(); }
+function push(type,id){ stack.push({type,id}); if(type==='titre') loadTitre(id); render(); }
+function pop(){ stack.pop(); render(); }
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]'); if(t){ go(t.dataset.tab); return; }
+  const b=e.target.closest('[data-back]'); if(b){ pop(); return; }
+  const c=e.target.closest('[data-close]'); if(c){ closeSheet(); return; }
+  const a=e.target.closest('[data-act]'); if(a){ ACT[a.dataset.act] && ACT[a.dataset.act](a.dataset,a); }
+});
+
+/* feuille modale */
+function openSheet(html){ $('#sheetPanel').innerHTML=html; $('#sheet').classList.add('on'); }
+function closeSheet(){ $('#sheet').classList.remove('on'); }
+
+/* ============================================================
+   9. RENDU
+   ============================================================ */
+function render(){
+  drawTabs();
+  const app=$('#app');
+  if(stack.length){ app.innerHTML=SUB[stack[stack.length-1].type](stack[stack.length-1].id); }
+  else { app.innerHTML=VIEW[TAB](); }
+  app.scrollTop=0;
+  const v=app.querySelector('.view'); if(v) v.scrollTop=0;
+  if(AFTER){ const f=AFTER; AFTER=null; f(); }
+}
+let AFTER=null;
+const backbar=(t)=>`<div class="backbar"><button class="back" data-back="1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 5-7 7 7 7"/></svg>Retour</button></div><div class="hdr"><h2>${esc(t)}</h2></div>`;
+
+/* ---------- courbe ---------- */
+function chart(days){
+  const a=series(days);
+  if(a.length<2) return '';
+  const w=340,h=132,pad=6;
+  const vs=a.map(x=>x.t), mn=Math.min(...vs), mx=Math.max(...vs), sp=(mx-mn)||1;
+  const X=i=>pad+i*(w-2*pad)/(a.length-1);
+  const Y=v=>h-pad-((v-mn)/sp)*(h-2*pad-10);
+  let d=''; a.forEach((x,i)=>{ d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(x.t).toFixed(1)+' '; });
+  const area=d+`L${X(a.length-1).toFixed(1)} ${h} L${pad} ${h} Z`;
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path class="area" d="${area}"/><path class="line" d="${d}"/></svg>
+    <div style="display:flex;justify-content:space-between" class="lbl"><span>${fmtDate(a[0].d)}</span><span>${fmtDate(a[a.length-1].d)}</span></div>`;
+}
+function variation(days){
+  const a=series(days); if(a.length<2) return null;
+  const f=a[0].t,l=a[a.length-1].t; if(!f) return null;
+  return {abs:l-f,rel:(l-f)/Math.abs(f)};
+}
+
+/* ---------- onglet Patrimoine ---------- */
+const VIEW={};
+VIEW.patrimoine=function(){
+  const has=S.assets.length>0;
+  const nw=netWorth();
+  const vr=variation(RANGE);
+  const cards=Object.keys(CLASSES).map(k=>{
+    const list=assetsIn(k), val=S.totals.byClass[k]||0, filled=list.length>0;
+    const share=S.totals.total>0?val/S.totals.total:0;
+    if(!filled) return `<button class="classcard" data-act="startClass" data-cls="${k}">
+        <div class="top"><h3>${CLASSES[k].name}</h3></div>
+        <div class="hint">${CLASSES[k].teach}</div>
+        <span class="cta-inline">${CLASSES[k].cta}</span></button>`;
+    return `<button class="classcard filled" data-act="openClass" data-cls="${k}">
+        <div class="top"><h3>${CLASSES[k].name}</h3><span class="val num">${money(val)}</span></div>
+        <div class="meta"><span>${list.length} ligne${list.length>1?'s':''}</span><span>${pct(share,0)} du patrimoine</span></div>
+      </button>`;
+  }).join('');
+
+  const debtLine=S.totals.debt>0?`<div class="kv"><span>Dettes en cours</span><span class="num">−${money(S.totals.debt).replace('−','')}</span></div>`:'';
+  const tax=taxTotal();
+  const taxLine=tax>0?`<div class="kv"><span>Fiscalité latente estimée</span><span class="num">−${money(tax)}</span></div>`:'';
+
+  return `<div class="hdr">
+      <div><div class="lbl">Patrimoine net</div>
+        <div class="mono-big num">${has?money(nw):'0 '+CCY[S.user.base].s}</div></div>
+    </div>
+    <div class="view">
+      ${has&&vr?`<div class="small ${vr.abs>=0?'up':'down'}" style="font-weight:700">${vr.abs>=0?'+':'−'}${money(Math.abs(vr.abs))} · ${vr.abs>=0?'+':'−'}${pct(Math.abs(vr.rel))} sur ${RANGE_L[RANGE]}</div>`:''}
+      ${has&&S.snapshots.length>1?chart(RANGE)+rangePicker():''}
+      ${!has?`<p class="muted" style="margin-top:var(--s2)">Ajoutez une première ligne pour voir votre patrimoine se construire. Rien n'est envoyé en ligne, tout reste sur cet appareil.</p><hr class="rule">`:'<hr class="rule">'}
+      ${Object.keys(S.drafts).map(k=>`<div class="alert"><h3>Saisie ${CLASSES[k].name} interrompue</h3><p>Votre brouillon est conservé.</p>
+        <div style="margin-top:var(--s2);display:flex;gap:var(--s3)"><button class="chip warm" data-act="resume" data-cls="${k}">Reprendre</button>
+        <button class="chip" data-act="dropDraft" data-cls="${k}">Abandonner</button></div></div>`).join('')}
+      ${cards}
+      ${(debtLine||taxLine)?`<div style="margin-top:var(--s5)"><div class="lbl" style="margin-bottom:var(--s2)">Ce qui pèse sur le net</div>${debtLine}${taxLine}
+        <div class="kv"><span>Valeur brute des actifs</span><span class="num">${money(S.totals.total)}</span></div></div>`:''}
+    </div>`;
+};
+let RANGE=180;
+const RANGE_L={30:'30 jours',90:'3 mois',180:'6 mois',0:'tout l\u2019historique'};
+function rangePicker(){
+  return `<div class="seg" style="margin-top:var(--s3)">`+[30,90,180,0].map(d=>
+    `<button data-act="range" data-d="${d}" class="${d===RANGE?'on':''}">${d?d+' j':'Tout'}</button>`).join('')+`</div>`;
+}
+
+/* ---------- fiche classe ---------- */
+const SUB={};
+SUB.classe=function(cls){
+  let list=assetsIn(cls);
+  const total=S.totals.byClass[cls]||0;
+  const PAGE=30, shown=list.slice(0,pageN);
+  const rows=shown.map(a=>{
+    const v=a._c?a._c.v:0, c=a._c?a._c.c:0, pl=v-c;
+    let sub='';
+    if(a.cls==='bourse') sub=`${qtyOf(a.id).toLocaleString('fr-FR')} × ${(a.px&&a.px.value||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${CCY[a.ccy].s}${a.px&&daysSince(a.px.date)>0?' · cours du '+fmtDate(a.px.date):''}`;
+    if(a.cls==='immobilier') sub=`${esc(a.type||'Bien')} · estimé le ${fmtDate(a.valueDate)}`;
+    if(a.cls==='liquidites') sub=`${esc(a.type||'Compte')}${a.bank?' · '+esc(a.bank):''} · solde du ${fmtDate(a.balanceDate)}`;
+    if(a.cls==='enveloppes') sub=`${ENV_NAME[a.kind]} · fiscalité ${pct(ENV_TAX[a.kind],1)}`;
+    return `<button class="row" data-act="openAsset" data-id="${a.id}">
+      <span class="l"><strong>${esc(a.name)}</strong><span class="small muted">${sub}</span></span>
+      <span class="r"><strong class="num">${money(v)}</strong>${a.cls!=='liquidites'&&c>0?`<span class="small ${pl>=0?'up':'down'} num">${pl>=0?'+':'−'}${money(Math.abs(pl))}</span>`:''}</span></button>`;
+  }).join('');
+  const envBlock = cls==='enveloppes' ? envSummary() : '';
+  return `${backbar(CLASSES[cls].name)}
+   <div class="view">
+     <div class="mono-big num" style="margin-bottom:var(--s4)">${money(total)}</div>
+     ${envBlock}
+     ${list.length?rows:'<div class="empty">Aucune ligne pour l\u2019instant.</div>'}
+     ${list.length>pageN?`<button class="more" data-act="more">Afficher ${Math.min(PAGE,list.length-pageN)} lignes de plus</button>`:''}
+     <div style="margin-top:var(--s5)"><button class="btn" data-act="startClass" data-cls="${cls}">${CLASSES[cls].cta}</button></div>
+   </div>`;
+};
+let pageN=30;
+
+function envSummary(){
+  const envs=S.assets.filter(a=>a.cls==='enveloppes');
+  if(!envs.length) return '';
+  const rows=envs.map(e=>{const t=envTax(e);
+    return `<div class="kv"><span>${ENV_NAME[e.kind]} — ${pct(t.rate,1)}</span><span class="num">${t.tax>0?'−'+money(t.tax):'aucune'}</span></div>`;}).join('');
+  return `<div style="background:var(--surface);padding:var(--s4);border-radius:var(--r);margin-bottom:var(--s4)">
+    <div class="lbl" style="margin-bottom:var(--s2)">Impôt qui serait dû en cas de retrait total</div>${rows}</div>`;
+}
+
+/* ---------- fiche actif ---------- */
+SUB.actif=function(id){
+  const a=assetById(id); if(!a) return backbar('Introuvable')+'<div class="view"></div>';
+  const v=a._c?a._c.v:0, c=a._c?a._c.c:0, pl=v-c, rel=c?pl/c:0;
+  let body='';
+  if(a.cls==='bourse'){
+    const stale=a.px?daysSince(a.px.date):9999;
+    const env=a.envId?assetById(a.envId):null;
+    body=`
+      <div class="kv"><span>Cours retenu</span><span class="num">${(a.px&&a.px.value||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${CCY[a.ccy].s}</span></div>
+      <div class="kv"><span>${stale>0?'Cours du':'Mis à jour'}</span><span>${fmtDate(a.px&&a.px.date)}${a.px&&a.px.src?' · '+esc(a.px.src):''}</span></div>
+      <div class="kv"><span>Quantité</span><span class="num">${qtyOf(a.id).toLocaleString('fr-FR')}</span></div>
+      <div class="kv"><span>Prix de revient</span><span class="num">${money(c)}</span></div>
+      <div class="kv"><span>Plus ou moins-value</span><span class="num ${pl>=0?'up':'down'}">${pl>=0?'+':'−'}${money(Math.abs(pl))} · ${pct(rel)}</span></div>
+      <div class="kv"><span>Enveloppe</span><span>${env?ENV_NAME[env.kind]:'Aucune'}</span></div>
+      ${a.listed?`<div class="kv"><span>ISIN</span><span class="num">${esc(a.isin)}</span></div>
+      <div class="kv"><span>Place</span><span>${esc(a.place)}</span></div>
+      <div class="kv"><span>Secteur</span><span>${esc(a.sec)}</span></div>
+      <div class="kv"><span>Pays</span><span>${esc(a.country)}</span></div>`
+      :`<div class="kv"><span>Type</span><span>Actif non coté</span></div>`}
+      ${stale>3?`<div class="alert" style="margin-top:var(--s4)"><h3>Cours daté du ${fmtDate(a.px&&a.px.date)}</h3><p>Il y a ${stale} jours. La valeur affichée reste le dernier cours connu.</p></div>`:''}
+      <div style="margin-top:var(--s5)">
+        <button class="btn" data-act="editPx" data-id="${a.id}">Mettre à jour le cours</button>
+        <button class="btn quiet" data-act="addLot" data-id="${a.id}">Ajouter un lot</button>
+        <button class="btn quiet" data-act="setEnv" data-id="${a.id}">Rattacher à une enveloppe</button>
+      </div>
+      <div class="lbl" style="margin:var(--s5) 0 var(--s2)">Lots saisis</div>
+      ${lotsOf(a.id).map(l=>`<div class="kv"><span>${fmtDate(l.date)} · ${l.qty.toLocaleString('fr-FR')} × ${l.price.toLocaleString('fr-FR')} ${CCY[l.ccy].s}${l.fees?' · frais '+l.fees:''}</span><span><button data-act="delLot" data-id="${l.id}" style="color:var(--warm);font-weight:700;font-size:var(--t2)">Supprimer</button></span></div>`).join('')}`;
+  }
+  if(a.cls==='immobilier'){
+    const li=S.liabilities.find(x=>x.assetId===a.id);
+    body=`<div class="kv"><span>Adresse</span><span>${esc(a.name)}</span></div>
+      <div class="kv"><span>Type de bien</span><span>${esc(a.type)}</span></div>
+      <div class="kv"><span>Valeur estimée</span><span class="num">${money(v)}</span></div>
+      <div class="kv"><span>Date d'estimation</span><span>${fmtDate(a.valueDate)}</span></div>
+      <div class="kv"><span>Prix d'achat</span><span class="num">${money((a.buyPrice||0)*fxNow(a.ccy))}</span></div>
+      <div class="kv"><span>Frais d'acquisition</span><span class="num">${money((a.fees||0)*fxNow(a.ccy))}</span></div>
+      <div class="kv"><span>Travaux</span><span class="num">${money((a.works||0)*fxNow(a.ccy))}</span></div>
+      <div class="kv"><span>Plus-value latente</span><span class="num ${pl>=0?'up':'down'}">${pl>=0?'+':'−'}${money(Math.abs(pl))}</span></div>
+      ${li&&li.amount?`<div class="lbl" style="margin:var(--s5) 0 var(--s2)">Crédit adossé</div>
+        <div class="kv"><span>Capital restant dû</span><span class="num">${money(li.amount)}</span></div>
+        <div class="kv"><span>Taux</span><span class="num">${pct(li.rate/100,2)}</span></div>
+        <div class="kv"><span>Durée restante</span><span class="num">${li.years} ans</span></div>
+        <div class="kv"><span>Assurance</span><span class="num">${pct(li.insurance/100,2)}</span></div>
+        <div class="kv"><span>Mensualité</span><span class="num">${money(li.monthly)}</span></div>
+        <div class="kv"><span>Valeur nette du bien</span><span class="num">${money(v-li.amount)}</span></div>`
+      :'<p class="muted small" style="margin-top:var(--s4)">Aucun crédit adossé.</p>'}
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="editValue" data-id="${a.id}">Actualiser l'estimation</button></div>`;
+  }
+  if(a.cls==='liquidites'){
+    body=`<div class="kv"><span>Type de compte</span><span>${esc(a.type)}</span></div>
+      <div class="kv"><span>Établissement</span><span>${a.bank?esc(a.bank):'Non renseigné'}</span></div>
+      <div class="kv"><span>Taux annuel</span><span class="num">${a.rate!=null?pct(a.rate/100,2):'Non renseigné'}</span></div>
+      <div class="kv"><span>Solde</span><span class="num">${money(v)}</span></div>
+      <div class="kv"><span>Date du solde</span><span>${fmtDate(a.balanceDate)}</span></div>
+      <div style="margin-top:var(--s5)">
+        <button class="btn" data-act="editValue" data-id="${a.id}">Mettre à jour le solde</button>
+        <button class="btn quiet" data-act="editBank" data-id="${a.id}">Établissement et taux</button></div>`;
+  }
+  if(a.cls==='enveloppes'){
+    const t=envTax(a), inside=S.assets.filter(x=>x.envId===a.id);
+    body=`<div class="kv"><span>Type</span><span>${ENV_NAME[a.kind]}</span></div>
+      <div class="kv"><span>Valeur des titres</span><span class="num">${money(t.val-(a._c?a._c.v:0))}</span></div>
+      <div class="kv"><span>Liquidités de l'enveloppe</span><span class="num">${money(a._c?a._c.v:0)}</span></div>
+      <div class="kv"><span>Prix de revient</span><span class="num">${money(t.cost)}</span></div>
+      <div class="kv"><span>Plus-value latente</span><span class="num ${t.gain>=0?'up':'down'}">${t.gain>=0?'+':'−'}${money(Math.abs(t.gain))}</span></div>
+      <div class="kv"><span>Taux d'imposition</span><span class="num">${pct(t.rate,1)}</span></div>
+      <div class="kv"><span>Impôt en cas de retrait total</span><span class="num">${t.tax>0?'−'+money(t.tax):'aucun'}</span></div>
+      <div class="kv"><span>Valeur nette d'impôt</span><span class="num">${money(t.net)}</span></div>
+      <div class="lbl" style="margin:var(--s5) 0 var(--s2)">Titres logés ici</div>
+      ${inside.length?inside.map(x=>`<button class="row" data-act="openAsset" data-id="${x.id}"><span class="l"><strong>${esc(x.name)}</strong></span><span class="r"><strong class="num">${money(x._c?x._c.v:0)}</strong></span></button>`).join(''):'<p class="muted small">Aucun titre rattaché.</p>'}
+      <div style="margin-top:var(--s5)"><button class="btn quiet" data-act="editCash" data-id="${a.id}">Modifier les liquidités</button></div>`;
+  }
+  return `${backbar(a.name)}
+    <div class="view">
+      <div class="mono-big num" style="margin-bottom:var(--s5)">${money(v)}</div>
+      ${body}
+      <div style="margin-top:var(--s6)"><button class="btn danger" data-act="delAsset" data-id="${a.id}">Supprimer cette ligne</button></div>
+    </div>`;
+};
+
+/* ---------- Projets ---------- */
+VIEW.projets=function(){
+  const list=S.projects;
+  const rows=list.map(p=>{
+    const fin=finance(p);
+    return `<button class="row" data-act="openProj" data-id="${p.id}">
+      <span class="l"><strong>${esc(p.name)}</strong><span class="small muted">${p.done?'Acté · intégré au patrimoine':'À l\u2019étude · hors patrimoine'} · ${fmtDate(p.date)}</span></span>
+      <span class="r"><strong class="num">${money(p.target)}</strong><span class="small muted num">${fin.monthly?money(fin.monthly)+'/mois':''}</span></span></button>`;
+  }).join('');
+  return `<div class="hdr"><div><div class="lbl">Projets</div><h1>${list.length||'Aucun'}</h1></div></div>
+    <div class="view">
+      <p class="muted small">Un projet reste en dehors du patrimoine tant qu'il n'est pas acté. Une fois acté, le bien et son crédit basculent dans Patrimoine.</p>
+      <hr class="rule">
+      ${list.length?rows:'<div class="empty">Rien à financer pour le moment.</div>'}
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="startProj">Créer un projet</button></div>
+    </div>`;
+};
+function finance(p){
+  const borrowed=Math.max((p.target||0)+(p.fees||0)-(p.down||0),0);
+  const n=(p.years||0)*12, i=(p.rate||0)/100/12, ins=(p.insurance||0)/100/12*borrowed;
+  let m=0;
+  if(borrowed>0&&n>0) m = i>0 ? borrowed*i/(1-Math.pow(1+i,-n)) : borrowed/n;
+  return {borrowed,monthly:m+ins,insurance:ins,cost:(m*n)-borrowed};
+}
+SUB.projet=function(id){
+  const p=S.projects.find(x=>x.id===id); if(!p) return backbar('Introuvable')+'<div class="view"></div>';
+  const f=finance(p);
+  return `${backbar(p.name)}
+   <div class="view">
+     <div class="mono-big num" style="margin-bottom:var(--s4)">${money(p.target)}</div>
+     <span class="chip ${p.done?'':'warm'}">${p.done?'Acté':'À l\u2019étude'}</span>
+     <div class="lbl" style="margin:var(--s5) 0 var(--s2)">Plan de financement</div>
+     <div class="kv"><span>Apport</span><span class="num">${money(p.down)}</span></div>
+     <div class="kv"><span>Frais</span><span class="num">${money(p.fees)}</span></div>
+     <div class="kv"><span>Montant emprunté</span><span class="num">${money(f.borrowed)}</span></div>
+     <div class="kv"><span>Taux</span><span class="num">${pct(p.rate/100,2)}</span></div>
+     <div class="kv"><span>Durée</span><span class="num">${p.years} ans</span></div>
+     <div class="kv"><span>Assurance</span><span class="num">${pct(p.insurance/100,2)}</span></div>
+     <div class="kv"><span>Mensualité tout compris</span><span class="num">${money(f.monthly)}</span></div>
+     <div class="kv"><span>Coût total du crédit</span><span class="num">${money(f.cost)}</span></div>
+     <div class="kv"><span>Échéance visée</span><span>${fmtDate(p.date)}</span></div>
+     <div style="margin-top:var(--s6)">
+       ${p.done?'<p class="muted small">Ce projet a été acté. Le bien et son crédit figurent dans Patrimoine.</p>':`<button class="btn ember" data-act="actProj" data-id="${p.id}">Acter le projet</button>`}
+       <button class="btn danger" data-act="delProj" data-id="${p.id}">Supprimer le projet</button>
+     </div>
+   </div>`;
+};
+
+/* ---------- Bourse (watchlist + fiche titre en direct) ---------- */
+let BQ='', BQres=[], BQloading=false;
+const SEARCH_CACHE={};
+function titleKey(x){ return x.isin ? x.isin : (x.tk+'|'+(x.mic||x.pl||'')); }
+function cacheItem(x){ SEARCH_CACHE[titleKey(x)]=x; return x; }
+function findTitle(key){
+  return CATALOG.find(c=>titleKey(c)===key)
+      || S.watchlist.find(w=>titleKey(w)===key)
+      || SEARCH_CACHE[key] || null;
+}
+async function doBourseSearch(){
+  const q=BQ.trim();
+  if(q.length<2){ BQres=[]; render(); return; }
+  BQloading=true; render();
+  const local=searchCatalog(q).map(c=>Object.assign({},c));
+  let live=[];
+  if(S.tdKey){
+    const r=await tdSymbolSearch(q);
+    live=r.filter(x=>x.country==='France').map(x=>({n:x.instrument_name,tk:x.symbol,pl:x.exchange,mic:x.mic_code,c:x.currency,isin:null,sec:'',p:'France'}));
+  }
+  const seenTk=new Set(local.map(x=>x.tk));
+  live=live.filter(x=>!seenTk.has(x.tk));
+  const merged=[...local,...live].slice(0,15);
+  merged.forEach(cacheItem);
+  BQres=merged; BQloading=false; render();
+}
+let TITRE_DATA={};
+async function loadTitre(key){
+  const x=findTitle(key); if(!x) return;
+  TITRE_DATA[key]={loading:true}; render();
+  const [q,st]=await Promise.all([tdQuote(x.tk,x.mic),tdStatistics(x.tk,x.mic)]);
+  TITRE_DATA[key]={loading:false,quote:q,stats:st}; render();
+}
+function bourseRow(x,isResult){
+  const k=titleKey(x), inWl=S.watchlist.some(w=>titleKey(w)===k);
+  return `<div class="row" data-act="openTitre" data-k="${esc(k)}">
+    <span class="l"><strong>${esc(x.n)}</strong><span class="small muted">${esc(x.tk)} · ${esc(x.pl||'')}</span></span>
+    <span class="r"><button class="chip ${inWl?'on':'warm'}" data-act="${inWl?'wlDel':'wlAdd'}" data-k="${esc(k)}">${inWl?'Suivi ✓':'Suivre'}</button></span></div>`;
+}
+VIEW.bourse=function(){
+  const wl=S.watchlist;
+  AFTER=()=>{ const i=$('#bq'); if(i){ i.focus({preventScroll:true}); i.setSelectionRange(i.value.length,i.value.length); } };
+  return `<div class="hdr"><div><div class="lbl">Bourse</div><h1>${wl.length||'Watchlist'}</h1></div></div>
+   <div class="view">
+     <input id="bq" class="field sm" placeholder="Nom, ISIN ou ticker — small caps incluses" value="${esc(BQ)}" autocomplete="off"
+       oninput="BQ=this.value;clearTimeout(window.__bqT);window.__bqT=setTimeout(doBourseSearch,350)">
+     ${!S.tdKey?`<p class="err" style="min-height:auto;margin-top:var(--s2)">Aucune clé Twelve Data — renseignez-la dans Réglages pour activer les données en direct.</p>`:''}
+     ${BQloading?'<p class="muted small" style="margin-top:var(--s3)">Recherche…</p>':''}
+     ${BQ.trim().length>=2&&!BQloading?(BQres.length?`<div class="lbl" style="margin-top:var(--s4)">Résultats</div>`+BQres.map(x=>bourseRow(x,true)).join(''):'<div class="empty">Aucun résultat.</div>'):''}
+     <div class="lbl" style="margin-top:var(--s5)">Votre watchlist</div>
+     ${wl.length?wl.map(x=>bourseRow(x,false)).join(''):'<p class="muted small">Suivez une valeur, intégrée ou non à votre portefeuille, pour repérer une opportunité.</p>'}
+   </div>`;
+};
+SUB.titre=function(key){
+  const x=findTitle(key); if(!x) return backbar('Introuvable')+'<div class="view"></div>';
+  const d=TITRE_DATA[key]||{}, q=d.quote, st=d.stats;
+  const inWl=S.watchlist.some(w=>titleKey(w)===key);
+  const links=extLinks(x.n,x.isin,x.tk);
+  const na=v=>(v==null||isNaN(v))?'Indisponible':Number(v).toLocaleString('fr-FR',{maximumFractionDigits:2});
+  return `${backbar(x.n)}
+   <div class="view">
+     <div style="display:flex;align-items:baseline;gap:var(--s3)">
+       <div class="mono-big num">${q&&q.price!=null?q.price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(x.c||''):(d.loading?'…':'—')}</div>
+       ${q&&q.change!=null?`<span class="small ${q.change>=0?'up':'down'}">${q.change>=0?'+':''}${na(q.change)} %</span>`:''}
+     </div>
+     <div class="small muted">${esc(x.tk)} · ${esc(x.pl||'')}${x.isin?' · '+esc(x.isin):''}</div>
+     <div class="btnrow" style="margin-top:var(--s4)">
+       <button class="btn ${inWl?'quiet':'ember'}" data-act="${inWl?'wlDel':'wlAdd'}" data-k="${esc(key)}">${inWl?'Retirer de la watchlist':'Ajouter à la watchlist'}</button>
+       <button class="btn ghost" data-act="refreshTitre" data-k="${esc(key)}">Actualiser</button>
+     </div>
+     ${d.loading?'<p class="muted small" style="margin-top:var(--s4)">Chargement…</p>':''}
+     ${(q&&q.error)||(st&&st.error)?`<div class="alert" style="margin-top:var(--s4)"><h3>Données indisponibles</h3><p>${esc((q&&q.error)||(st&&st.error)||'')}</p></div>`:''}
+     ${st&&!st.error?`<div class="lbl" style="margin:var(--s5) 0 var(--s2)">Fondamentaux</div>
+       <div class="kv"><span>PER</span><span class="num">${na(st.per)}</span></div>
+       <div class="kv"><span>Bénéfice net par action</span><span class="num">${na(st.bna)}</span></div>
+       <div class="kv"><span>Dividende (rendement)</span><span class="num">${st.dividendeRendement!=null?pct(st.dividendeRendement,2):'Indisponible'}</span></div>
+       <div class="kv"><span>Croissance du CA (trim.)</span><span class="num">${st.croissanceCA!=null?pct(st.croissanceCA,2):'Indisponible'}</span></div>
+       <div class="kv"><span>Prévisionnel de croissance</span><span class="num">Indisponible en offre gratuite</span></div>`:''}
+     <div class="lbl" style="margin:var(--s5) 0 var(--s2)">Avis externes</div>
+     <p class="small muted">Notations propriétaires non accessibles par API : ouvrez la fiche officielle.</p>
+     <div class="btnrow">
+       <a class="btn quiet" style="text-decoration:none" href="${links.boursobank}" target="_blank" rel="noopener">BoursoBank</a>
+       <a class="btn quiet" style="text-decoration:none" href="${links.zonebourse}" target="_blank" rel="noopener">Zonebourse</a>
+     </div>
+     <a class="btn ghost" style="margin-top:var(--s2);text-decoration:none" href="${links.euronext}" target="_blank" rel="noopener">Actualités Euronext</a>
+   </div>`;
+};
+
+/* ---------- Recherche ---------- */
+let Q='';
+VIEW.recherche=function(){
+  const q=Q.trim().toLowerCase();
+  const mine=q?S.assets.filter(a=>a.name.toLowerCase().includes(q)||(a.isin||'').toLowerCase().includes(q)||(a.tk||'').toLowerCase().includes(q)):[];
+  const cat=q?searchCatalog(Q).filter(c=>!S.assets.some(a=>a.isin===c.isin)):[];
+  AFTER=()=>{const i=$('#q'); if(i){i.focus({preventScroll:true}); i.setSelectionRange(i.value.length,i.value.length);} };
+  return `<div class="hdr" style="padding-bottom:0"><div style="width:100%"><div class="lbl">Recherche</div>
+      <input id="q" class="field sm" placeholder="Nom, ISIN ou ticker" value="${esc(Q)}" autocomplete="off" oninput="Q=this.value;render()"></div></div>
+    <div class="view">
+      ${!q?'<p class="muted small" style="margin-top:var(--s4)">Cherchez dans vos lignes ou dans le catalogue de titres pour en ajouter une.</p>':''}
+      ${mine.length?`<div class="lbl" style="margin-top:var(--s4)">Dans votre patrimoine</div>`+mine.map(a=>`<button class="row" data-act="openAsset" data-id="${a.id}"><span class="l"><strong>${esc(a.name)}</strong><span class="small muted">${CLASSES[bucketOf(a)].name}</span></span><span class="r"><strong class="num">${money(a._c?a._c.v:0)}</strong></span></button>`).join(''):''}
+      ${cat.length?`<div class="lbl" style="margin-top:var(--s5)">Catalogue de titres</div>`+cat.map(c=>`<button class="row" data-act="quickAdd" data-isin="${c.isin}"><span class="l"><strong>${esc(c.n)}</strong><span class="small muted">${c.tk} · ${c.isin} · ${c.pl}</span></span><span class="r"><span class="chip warm">Ajouter</span></span></button>`).join(''):''}
+      ${q&&!mine.length&&!cat.length?'<div class="empty">Aucun résultat. Vous pouvez créer une ligne manuellement depuis Patrimoine.</div>':''}
+    </div>`;
+};
+
+
+
+
+/* ---------- Réglages ---------- */
+VIEW.reglages=function(){
+  const rates=Object.keys(CCY).filter(c=>c!=='EUR').map(c=>
+    `<div class="kv"><span>1 ${c} en euros</span><span><input class="field sm" style="width:110px;text-align:right;border:0;border-bottom:1px solid var(--rule);padding:2px 0" value="${S.rates[c]}" inputmode="decimal" data-rate="${c}" onchange="ACT.setRate(this.dataset,this)"></span></div>`).join('');
+  return `<div class="hdr"><div><div class="lbl">Réglages</div><h1>Amalthée</h1></div></div>
+   <div class="view">
+     <div class="lbl">Vous</div>
+     <div class="kv"><span>Prénom</span><span><input class="field sm" style="width:150px;text-align:right;border:0;border-bottom:1px solid var(--rule);padding:2px 0" value="${esc(S.user.name)}" onchange="ACT.setName(null,this)"></span></div>
+     <div class="kv"><span>Devise de base</span><span><select class="field sm" style="width:auto;padding:6px 8px" onchange="ACT.setBase(null,this)">${Object.keys(CCY).map(c=>`<option value="${c}" ${c===S.user.base?'selected':''}>${c} — ${CCY[c].n}</option>`).join('')}</select></span></div>
+
+     <div class="lbl" style="margin-top:var(--s5)">Apparence</div>
+     <div class="seg" style="margin-top:var(--s2)">
+       ${[['system','Système'],['light','Clair'],['dark','Sombre']].map(t=>`<button data-act="setTheme" data-t="${t[0]}" class="${S.theme===t[0]?'on':''}">${t[1]}</button>`).join('')}
+     </div>
+
+     <div class="lbl" style="margin-top:var(--s5)">Taux de change</div>
+     <p class="small muted">Modifiables à la main. Chaque valorisation fige le taux appliqué au moment de la saisie, l'historique n'est donc jamais recalculé.</p>
+     ${rates}
+
+     <div class="lbl" style="margin-top:var(--s5)">Bourse</div>
+     <p class="small muted">Clé API Twelve Data (données en direct dans l'onglet Bourse).</p>
+     <input class="field sm" value="${esc(S.tdKey||'')}" placeholder="Votre clé Twelve Data" onchange="ACT.setTdKey(null,this)">
+
+     <div class="lbl" style="margin-top:var(--s5)">Vos données</div>
+     <p class="small muted">${S.assets.length} ligne${S.assets.length>1?'s':''} · ${S.snapshots.length} instantané${S.snapshots.length>1?'s':''} · ${S.projects.length} projet${S.projects.length>1?'s':''}.</p>
+     <p class="small ${Store.mode==='mémoire'?'down':'muted'}">${Store.mode==='mémoire'?'Attention : aucun stockage durable disponible. Vos données seront perdues à la fermeture, exportez-les.':'Enregistrement sur '+(Store.mode==='appareil'?'cet appareil':'votre espace Claude')+'. Rien ne circule sur le réseau.'}</p>
+     <button class="btn quiet" data-act="export">Exporter en JSON</button>
+     <button class="btn quiet" data-act="import">Importer un JSON</button>
+
+     <div class="lbl" style="margin-top:var(--s5)">Démonstration</div>
+     <button class="btn ghost" data-act="demo">Générer un historique de démonstration</button>
+     <button class="btn ghost" data-act="clearSnaps">Effacer l'historique</button>
+
+     <div style="margin-top:var(--s6)"><button class="btn danger" data-act="reset">Tout réinitialiser</button></div>
+     <p class="small muted" style="margin-top:var(--s5);text-align:center">Prototype · données locales · aucun appel réseau</p>
+   </div>`;
+};
+
+/* ============================================================
+   10. ONBOARDING
+   ============================================================ */
+let ob={step:0,name:'',base:'EUR'};
+function renderOnboarding(){
+  const w=$('#wiz'); w.classList.add('on'); $('#tabbar').classList.add('hide');
+  const steps=[
+    ()=>`<div class="wiz-q">Comment doit-on vous appeler ?</div>
+      <input id="obName" class="field" placeholder="Votre prénom" value="${esc(ob.name)}" autocomplete="given-name" maxlength="24">
+      <div class="helper">Utilisé uniquement pour vous accueillir à l'ouverture.</div><div class="err" id="obErr"></div>`,
+    ()=>`<div class="wiz-q">Dans quelle devise voulez-vous lire votre patrimoine ?</div>
+      ${Object.keys(CCY).map(c=>`<button class="opt ${ob.base===c?'on':''}" data-act="obCcy" data-c="${c}"><strong>${c} — ${CCY[c].n}</strong><span>${c==='EUR'?'Recommandé en France':'Conversion à l\u2019affichage uniquement'}</span></button>`).join('')}`
+  ];
+  w.innerHTML=`<div class="wiz-top">
+      <div class="lbl">Étape ${ob.step+1} sur 2</div>
+      <div class="prog"><i style="width:${(ob.step+1)/2*100}%"></i></div>
+    </div>
+    <div class="wiz-body">${steps[ob.step]()}</div>
+    <div class="wiz-foot">
+      <div class="btnrow">
+        ${ob.step>0?'<button class="btn ghost" data-act="obBack">Retour</button>':''}
+        <button class="btn" data-act="obNext">${ob.step===1?'Terminer':'Continuer'}</button>
+      </div>
+    </div>`;
+  const i=w.querySelector('#obName'); if(i) setTimeout(()=>i.focus(),60);
+}
+
+async function finishOnboarding(){
+  S.user.name=ob.name.trim(); S.user.base=ob.base; S.onboarded=true;
+  rebuildTotals(); persist(); await Store.save(S);
+  $('#wiz').classList.remove('on');
+  greet(()=>{ $('#tabbar').classList.remove('hide'); $('#app').style.display='flex'; go('patrimoine'); });
+}
+
+/* ---------- intro : corne d'abondance dessinée ---------- */
+function playIntro(next){
+  const el=$('#intro'); el.style.display='flex';
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let done=false;
+  const finish=()=>{ if(done) return; done=true; el.removeEventListener('click',finish); el.classList.add('out');
+    setTimeout(()=>{ el.style.display='none'; el.classList.remove('out'); next(); }, reduce?0:480); };
+  if(reduce){ setTimeout(finish,600); el.addEventListener('click',finish); return; }
+  ['hornBody','hornLip','hornCurl'].forEach((id,k)=>{
+    const path=document.getElementById(id), len=path.getTotalLength();
+    path.style.setProperty('--len',len);
+    path.style.animationDelay=(k*0.18)+'s';
+    path.classList.add('draw');
+  });
+  document.querySelectorAll('#seeds .seed').forEach((c,k)=>{
+    c.style.animation=`pop .5s cubic-bezier(.2,.9,.3,1.2) ${(0.75+k*0.09)}s forwards`;
+  });
+  el.addEventListener('click',finish);
+  setTimeout(finish,2000);
+}
+function greet(next){
+  const g=$('#greet');
+  $('#greetTxt').textContent=`Bonjour, ${S.user.name||'vous'}`;
+  g.classList.add('on');
+  setTimeout(()=>g.classList.add('out'),10);
+  setTimeout(()=>{ g.classList.remove('on','out'); next(); },1650);
+}
+
+
+/* ============================================================
+   11. ASSISTANT DE SAISIE — un champ par écran
+   ============================================================ */
+let W=null;
+const ACC_TYPES=['Compte courant','Livret A','LDDS','Livret jeune','LEP','Compte à terme','Espèces'];
+const PROP_TYPES=['Résidence principale','Résidence secondaire','Investissement locatif','Parts de SCPI','Terrain','Local commercial'];
+
+const FLOWS={
+ bourse:[
+  {k:'query',q:'Quel titre voulez-vous ajouter ?',t:'text',ph:'Nom ou code ISIN',help:'Par exemple « LVMH » ou « FR0000121014 ».'},
+  {k:'pick',q:'Est-ce l\u2019un de ces titres ?',t:'results'},
+  {k:'confirm',q:'Confirmez le titre',t:'confirm'},
+  {k:'qty',q:'Combien en détenez-vous ?',t:'num',ph:'0',help:'Nombre de parts ou d\u2019actions.',min:0.000001},
+  {k:'price',q:'À quel prix unitaire les avez-vous achetées ?',t:'num',ph:'0,00',min:0},
+  {k:'date',q:'Quand cet achat a-t-il eu lieu ?',t:'date'},
+  {k:'fees',q:'Quels frais avez-vous payés ?',t:'num',ph:'0',help:'Courtage et commissions. Saisissez 0 s\u2019il n\u2019y en a pas.',min:0},
+  {k:'env',q:'Dans quelle enveloppe ce titre est-il logé ?',t:'env'},
+  {k:'recap',q:'Vérifiez avant d\u2019enregistrer',t:'recap'}
+ ],
+ immobilier:[
+  {k:'name',q:'Quelle est l\u2019adresse du bien ?',t:'text',ph:'12 rue des Lilas, Lyon'},
+  {k:'type',q:'De quel type de bien s\u2019agit-il ?',t:'list',opts:PROP_TYPES},
+  {k:'value',q:'À combien l\u2019estimez-vous aujourd\u2019hui ?',t:'num',ph:'0',min:0},
+  {k:'valueDate',q:'De quand date cette estimation ?',t:'date'},
+  {k:'buyPrice',q:'À quel prix l\u2019avez-vous acheté ?',t:'num',ph:'0',min:0},
+  {k:'fees',q:'Quels frais d\u2019acquisition avez-vous payés ?',t:'num',ph:'0',help:'Notaire, agence, garanties.',min:0},
+  {k:'works',q:'Combien de travaux avez-vous financés ?',t:'num',ph:'0',help:'Saisissez 0 s\u2019il n\u2019y en a pas eu.',min:0},
+  {k:'loan',q:'Quel capital reste-t-il à rembourser ?',t:'num',ph:'0',help:'Saisissez 0 s\u2019il n\u2019y a pas de crédit.',min:0},
+  {k:'rate',q:'À quel taux ?',t:'num',ph:'0',suffix:'%',min:0},
+  {k:'years',q:'Sur combien d\u2019années restantes ?',t:'num',ph:'0',suffix:'ans',min:0},
+  {k:'insurance',q:'Quel taux d\u2019assurance emprunteur ?',t:'num',ph:'0',suffix:'%',min:0},
+  {k:'monthly',q:'Quelle est la mensualité ?',t:'num',ph:'0',min:0},
+  {k:'recap',q:'Vérifiez avant d\u2019enregistrer',t:'recap'}
+ ],
+ liquidites:[
+  {k:'type',q:'Quel type de compte ajoutez-vous ?',t:'list',opts:ACC_TYPES},
+  {k:'balance',q:'Quel est le solde ?',t:'num',ph:'0',min:0},
+  {k:'balanceDate',q:'De quand date ce solde ?',t:'date'},
+  {k:'recap',q:'Vérifiez avant d\u2019enregistrer',t:'recap'}
+ ],
+ enveloppes:[
+  {k:'kind',q:'Quelle enveloppe voulez-vous créer ?',t:'list',opts:['PEA','CTO','AV'],labels:{PEA:'PEA — 17,2 % à la sortie',CTO:'Compte-titres — 30 %',AV:'Assurance-vie — 24,7 %'}},
+  {k:'name',q:'Comment la nommez-vous ?',t:'text',ph:'PEA Boursorama'},
+  {k:'cash',q:'Combien de liquidités y dorment ?',t:'num',ph:'0',help:'Cash non investi. Saisissez 0 s\u2019il n\u2019y en a pas.',min:0},
+  {k:'recap',q:'Vérifiez avant d\u2019enregistrer',t:'recap'}
+ ]
+};
+const LABELS={query:'Recherche',pick:'Titre',confirm:'Titre',qty:'Quantité',price:'Prix unitaire',date:'Date d\u2019achat',fees:'Frais',env:'Enveloppe',
+ name:'Nom',type:'Type',value:'Valeur estimée',valueDate:'Date d\u2019estimation',buyPrice:'Prix d\u2019achat',works:'Travaux',loan:'Capital restant dû',
+ rate:'Taux',years:'Durée restante',insurance:'Assurance',monthly:'Mensualité',balance:'Solde',balanceDate:'Date du solde',kind:'Enveloppe',cash:'Liquidités'};
+
+function startWizard(cls,resumeDraft){
+  const d=resumeDraft&&S.drafts[cls]?S.drafts[cls]:{data:{},step:0};
+  W={cls,step:d.step||0,data:Object.assign({},d.data),err:''};
+  if(!W.data.date&&cls==='bourse') W.data.date=todayISO();
+  if(!W.data.valueDate&&cls==='immobilier') W.data.valueDate=todayISO();
+  if(!W.data.balanceDate&&cls==='liquidites') W.data.balanceDate=todayISO();
+  $('#tabbar').classList.add('hide');
+  drawWizard();
+}
+function steps(){ let f=FLOWS[W.cls]; if(W.cls==='bourse'&&W.data.manual) f=f.filter(x=>x.k!=='pick'); return f; }
+function cur(){ return steps()[W.step]; }
+
+function drawWizard(){
+  const el=$('#wiz'); el.classList.add('on');
+  const st=cur(), n=steps().length;
+  el.innerHTML=`<div class="wiz-top">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="lbl">${CLASSES[W.cls].name} · étape ${W.step+1} sur ${n}</div>
+        <button class="lbl" data-act="wizClose" style="font-weight:700;color:var(--ink-soft)">Fermer</button>
+      </div>
+      <div class="prog"><i style="width:${(W.step+1)/n*100}%"></i></div>
+    </div>
+    <div class="wiz-body">
+      <div class="wiz-q">${st.q}</div>
+      ${bodyFor(st)}
+      ${st.help?`<div class="helper">${st.help}</div>`:''}
+      <div class="err">${esc(W.err)}</div>
+    </div>
+    <div class="wiz-foot"><div class="btnrow">
+      ${W.step>0?'<button class="btn ghost" data-act="wizBack">Retour</button>':''}
+      ${['results','list','env'].includes(st.t)?'':`<button class="btn" data-act="wizNext">${st.t==='recap'?'Enregistrer':'Continuer'}</button>`}
+    </div></div>`;
+  const i=el.querySelector('.field'); if(i&&['text','num','date'].includes(st.t)) setTimeout(()=>i.focus({preventScroll:true}),60);
+}
+
+function bodyFor(st){
+  const d=W.data, v=d[st.k];
+  if(st.t==='text') return `<input class="field" id="wf" value="${esc(v||'')}" placeholder="${esc(st.ph||'')}" autocomplete="off" enterkeyhint="next">`;
+  if(st.t==='num') return `<div style="display:flex;align-items:baseline;gap:8px"><input class="field" id="wf" inputmode="decimal" value="${v!=null?String(v).replace('.',','):''}" placeholder="${esc(st.ph||'')}" enterkeyhint="next"><span style="font-size:var(--t5);font-weight:700;color:var(--ink-soft)">${st.suffix||CCY[S.user.base].s}</span></div>`;
+  if(st.t==='date') return `<input class="field" id="wf" type="date" value="${v||todayISO()}" max="${todayISO()}">`;
+  if(st.t==='list') return st.opts.map(o=>`<button class="opt ${v===o?'on':''}" data-act="wizPick" data-v="${esc(o)}"><strong>${esc(st.labels?st.labels[o]:o)}</strong></button>`).join('');
+  if(st.t==='results'){
+    const r=searchCatalog(d.query||'');
+    return (r.length?r.map(c=>`<button class="opt" data-act="wizHit" data-isin="${c.isin}"><strong>${esc(c.n)}</strong><span>${c.tk} · ${c.isin} · ${c.pl} · ${c.c}</span></button>`).join('')
+      :`<p class="muted">Aucun titre ne correspond à « ${esc(d.query)} ».</p>`)
+      +`<button class="opt" data-act="wizManual"><strong>Aucun de ces titres</strong><span>Créer un actif non coté, saisi entièrement à la main</span></button>`;
+  }
+  if(st.t==='confirm'){
+    if(d.manual) return `<input class="field" id="wf" value="${esc(d.name||d.query||'')}" placeholder="Nom de l'actif">
+      <div class="helper">Actif non coté : aucun cours automatique, aucune actualité rattachée.</div>
+      <div style="margin-top:var(--s4)"><div class="lbl" style="margin-bottom:var(--s2)">Devise de la ligne</div>
+      ${Object.keys(CCY).map(c=>`<button class="chip ${(d.ccy||'EUR')===c?'on':''}" data-act="wizCcy" data-c="${c}" style="margin-right:6px">${c}</button>`).join('')}</div>`;
+    const c=CATALOG.find(x=>x.isin===d.isin)||{};
+    return `<div style="background:var(--surface);padding:var(--s4);border-radius:var(--r)">
+      <div class="kv"><span>Nom officiel</span><span>${esc(c.n)}</span></div>
+      <div class="kv"><span>ISIN</span><span class="num">${esc(c.isin)}</span></div>
+      <div class="kv"><span>Ticker</span><span class="num">${esc(c.tk)}</span></div>
+      <div class="kv"><span>Place</span><span>${esc(c.pl)}</span></div>
+      <div class="kv"><span>Devise</span><span>${esc(c.c)}</span></div>
+      <div class="kv"><span>Secteur</span><span>${esc(c.sec)}</span></div>
+      <div class="kv"><span>Pays</span><span>${esc(c.p)}</span></div>
+    </div>
+    <div class="helper">Sans cette confirmation, aucune actualité n'est rattachée à la ligne.</div>
+    <div style="margin-top:var(--s4)"><button class="btn quiet" data-act="wizBack">Ce n'est pas ce titre</button></div>`;
+  }
+  if(st.t==='env'){
+    const exist=S.assets.filter(a=>a.cls==='enveloppes');
+    return ['PEA','CTO','AV'].map(k=>{
+      const e=exist.find(x=>x.kind===k);
+      return `<button class="opt ${d.env===k?'on':''}" data-act="wizPickEnv" data-v="${k}"><strong>${ENV_NAME[k]} — ${pct(ENV_TAX[k],1)}</strong><span>${e?'Enveloppe existante : '+esc(e.name):'Sera créée automatiquement'}</span></button>`;
+    }).join('')+`<button class="opt ${d.env==='NONE'?'on':''}" data-act="wizPickEnv" data-v="NONE"><strong>Aucune enveloppe</strong><span>Détention en direct</span></button>`;
+  }
+  if(st.t==='recap'){
+    const rows=steps().filter(x=>!['recap','pick','query'].includes(x.k)).map(x=>{
+      let val=d[x.k];
+      if(x.k==='confirm'){ const c=CATALOG.find(y=>y.isin===d.isin); val=d.manual?(d.name||'—')+' (non coté)':(c?c.n:'—'); }
+      else if(x.k==='env') val=d.env==='NONE'?'Aucune':ENV_NAME[d.env];
+      else if(x.k==='kind') val=ENV_NAME[d.kind];
+      else if(['date','valueDate','balanceDate'].includes(x.k)) val=fmtDate(val);
+      else if(x.t==='num') val=(Number(val)||0).toLocaleString('fr-FR')+' '+(x.suffix||CCY[S.user.base].s);
+      const i=steps().findIndex(y=>y.k===x.k);
+      return `<button class="kv" style="width:100%;text-align:left" data-act="wizJump" data-i="${i}"><span>${LABELS[x.k]||x.k}</span><span>${esc(val==null?'—':val)} ✎</span></button>`;
+    }).join('');
+    return `<div>${rows}</div><div class="helper">Touchez une ligne pour la corriger.</div>`;
+  }
+  return '';
+}
+
+function readField(){
+  const st=cur(), el=$('#wf'); if(!el) return true;
+  if(st.t==='text'||(st.t==='confirm'&&W.data.manual)){
+    const v=el.value.trim();
+    if(!v){ W.err='Ce champ est obligatoire.'; return false; }
+    W.data[st.t==='confirm'?'name':st.k]=v; return true;
+  }
+  if(st.t==='num'){
+    const n=num(el.value);
+    if(n==null){ W.err='Saisissez un nombre. Mettez 0 si la valeur est nulle.'; return false; }
+    if(st.min!=null&&n<st.min){ W.err=st.min>0?'Cette valeur doit être supérieure à zéro.':'Valeur négative impossible.'; return false; }
+    W.data[st.k]=n; return true;
+  }
+  if(st.t==='date'){
+    if(!el.value){ W.err='Choisissez une date.'; return false; }
+    W.data[st.k]=el.value; return true;
+  }
+  return true;
+}
+function wizNext(){
+  W.err='';
+  const st=cur();
+  if(st.t==='list'&&!W.data[st.k]){ W.err='Choisissez une option.'; drawWizard(); return; }
+  if(st.t==='env'&&!W.data.env){ W.err='Choisissez une enveloppe, ou « Aucune ».'; drawWizard(); return; }
+  if(st.t==='results'){ W.err='Choisissez un titre dans la liste.'; drawWizard(); return; }
+  if(!readField()){ drawWizard(); return; }
+  if(st.t==='recap'){ commit(); return; }
+  if(st.k==='query'){ W.data.manual=false; W.data.isin=null; }
+  W.step++; saveDraft(); drawWizard();
+}
+function saveDraft(){ S.drafts[W.cls]={data:W.data,step:W.step}; persist(); }
+function closeWizard(keep){
+  if(keep&&W&&W.step>0){ saveDraft(); toast('Brouillon conservé, reprise possible depuis Alertes.'); }
+  W=null; $('#wiz').classList.remove('on'); $('#tabbar').classList.remove('hide'); render();
+}
+
+/* ---------- enregistrement ---------- */
+function ensureEnv(kind){
+  let e=S.assets.find(a=>a.cls==='enveloppes'&&a.kind===kind);
+  if(!e){ e={id:uid(),cls:'enveloppes',kind,name:ENV_NAME[kind],ccy:S.user.base,cash:0,fx:fxNow(S.user.base)}; S.assets.push(e); touch(e); }
+  return e;
+}
+function commit(){
+  const d=W.data, cls=W.cls;
+  if(cls==='bourse'){
+    const c=CATALOG.find(x=>x.isin===d.isin);
+    const ccy=d.manual?(d.ccy||'EUR'):c.c;
+    let a=!d.manual&&S.assets.find(x=>x.isin===d.isin&&x.cls==='bourse');
+    if(!a){
+      a={id:uid(),cls:'bourse',listed:!d.manual,name:d.manual?d.name:c.n,isin:d.manual?null:c.isin,tk:d.manual?null:c.tk,
+         place:d.manual?null:c.pl,sec:d.manual?null:c.sec,country:d.manual?null:c.p,ccy,envId:null,
+         px:{value:d.manual?d.price:c.px,date:todayISO(),src:d.manual?'Saisi manuellement':'Catalogue local',fx:fxNow(ccy)}};
+      S.assets.push(a);
+    }
+    if(d.env&&d.env!=='NONE') a.envId=ensureEnv(d.env).id; else a.envId=null;
+    S.lots.push({id:uid(),assetId:a.id,qty:d.qty,price:d.price,date:d.date,fees:d.fees||0,ccy,fx:fxNow(ccy)});
+    touch(a);
+    if(a.envId) touch(assetById(a.envId));
+  }
+  if(cls==='immobilier'){
+    const ccy=S.user.base;
+    const a={id:uid(),cls:'immobilier',name:d.name,type:d.type,value:d.value,valueDate:d.valueDate,buyPrice:d.buyPrice,fees:d.fees,works:d.works,ccy,fx:fxNow(ccy)};
+    S.assets.push(a); touch(a);
+    if(d.loan>0){ S.liabilities.push({id:uid(),assetId:a.id,amount:d.loan,rate:d.rate,years:d.years,insurance:d.insurance,monthly:d.monthly}); touchDebt(); }
+  }
+  if(cls==='liquidites'){
+    const ccy=S.user.base;
+    const a={id:uid(),cls:'liquidites',name:d.type,type:d.type,balance:d.balance,balanceDate:d.balanceDate,bank:'',rate:null,ccy,fx:fxNow(ccy)};
+    S.assets.push(a); touch(a);
+  }
+  if(cls==='enveloppes'){
+    const ccy=S.user.base;
+    let a=S.assets.find(x=>x.cls==='enveloppes'&&x.kind===d.kind);
+    if(a){ a.name=d.name; a.cash=d.cash; touch(a); }
+    else { a={id:uid(),cls:'enveloppes',kind:d.kind,name:d.name,cash:d.cash,ccy,fx:fxNow(ccy)}; S.assets.push(a); touch(a); }
+  }
+  delete S.drafts[cls];
+  snapshotToday(); persist();
+  W=null; $('#wiz').classList.remove('on'); $('#tabbar').classList.remove('hide');
+  TAB='patrimoine'; stack=[]; render();
+  toast('Ligne enregistrée.');
+}
+
+
+/* ============================================================
+   12. ACTIONS
+   ============================================================ */
+const ACT={
+  /* navigation */
+  startClass:d=>{ if(S.drafts[d.cls]) askResume(d.cls); else startWizard(d.cls,false); },
+  resume:d=>startWizard(d.cls,true),
+  openClass:d=>{ pageN=30; push('classe',d.cls); },
+  openAsset:d=>push('actif',d.id),
+  openProj:d=>push('projet',d.id),
+  goto:d=>push(d.t,d.id),
+  more:()=>{ pageN+=30; render(); },
+  range:d=>{ RANGE=+d.d; render(); },
+  dismiss:d=>{ S.dismissed.push(d.id); persist(); render(); },
+  dropDraft:d=>{ delete S.drafts[d.cls]; persist(); render(); },
+
+  /* bourse */
+  openTitre:d=>push('titre',d.k),
+  wlAdd:d=>{ const x=findTitle(d.k); if(!x) return;
+    if(!S.watchlist.some(w=>titleKey(w)===d.k)){ S.watchlist.push(Object.assign({},x,{addedDate:todayISO()})); persist(); }
+    render(); toast('Ajouté à la watchlist.'); },
+  wlDel:d=>{ S.watchlist=S.watchlist.filter(w=>titleKey(w)!==d.k); persist(); render(); toast('Retiré de la watchlist.'); },
+  refreshTitre:d=>loadTitre(d.k),
+
+  /* onboarding */
+  obCcy:d=>{ ob.base=d.c; renderOnboarding(); },
+  obBack:()=>{ const i=$('#obName'); if(i) ob.name=i.value; ob.step--; renderOnboarding(); },
+  obNext:()=>{
+    if(ob.step===0){ const i=$('#obName'), v=i.value.trim();
+      if(!v){ $('#obErr').textContent='Un prénom est nécessaire pour continuer.'; return; }
+      ob.name=v; ob.step=1; renderOnboarding(); return; }
+    finishOnboarding();
+  },
+
+  /* assistant */
+  wizNext, wizBack:()=>{ W.err=''; if(W.step>0){ W.step--; drawWizard(); } },
+  wizClose:()=>closeWizard(true),
+  wizPick:d=>{ W.data[cur().k]=d.v; W.err=''; W.step++; saveDraft(); drawWizard(); },
+  wizPickEnv:d=>{ W.data.env=d.v; W.err=''; W.step++; saveDraft(); drawWizard(); },
+  wizHit:d=>{ W.data.isin=d.isin; W.data.manual=false; W.err=''; W.step++; saveDraft(); drawWizard(); },
+  wizManual:()=>{ W.data.manual=true; W.data.isin=null; W.data.ccy='EUR'; W.err=''; W.step=steps().findIndex(x=>x.k==='confirm'); saveDraft(); drawWizard(); },
+  wizCcy:d=>{ W.data.ccy=d.c; drawWizard(); },
+  wizJump:d=>{ W.step=+d.i; W.err=''; drawWizard(); },
+
+  /* fiches actif */
+  editPx:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Mettre à jour le cours</h3>
+      <p class="small muted">Dernier cours connu : ${(a.px.value).toLocaleString('fr-FR')} ${CCY[a.ccy].s} au ${fmtDate(a.px.date)}.</p>
+      <div class="lbl" style="margin-top:var(--s4)">Nouveau cours en ${a.ccy}</div>
+      <input class="field sm" id="f1" inputmode="decimal" value="${a.px.value}">
+      <div class="lbl" style="margin-top:var(--s4)">Date du cours</div>
+      <input class="field sm" id="f2" type="date" value="${todayISO()}" max="${todayISO()}">
+      <div class="lbl" style="margin-top:var(--s4)">Source</div>
+      <input class="field sm" id="f3" value="${esc(a.px.src||'Saisi manuellement')}">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="savePx" data-id="${a.id}">Enregistrer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  savePx:d=>{ const a=assetById(d.id), v=num($('#f1').value);
+    if(v==null||v<0){ toast('Cours invalide.'); return; }
+    a.px={value:v,date:$('#f2').value||todayISO(),src:$('#f3').value.trim()||'Saisi manuellement',fx:fxNow(a.ccy)};
+    touch(a); if(a.envId) touch(assetById(a.envId)); snapshotToday(); closeSheet(); render(); toast('Cours mis à jour.'); },
+
+  addLot:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Ajouter un lot</h3>
+      <div class="lbl" style="margin-top:var(--s4)">Quantité</div><input class="field sm" id="f1" inputmode="decimal">
+      <div class="lbl" style="margin-top:var(--s4)">Prix unitaire en ${a.ccy}</div><input class="field sm" id="f2" inputmode="decimal">
+      <div class="lbl" style="margin-top:var(--s4)">Date d'achat</div><input class="field sm" id="f3" type="date" value="${todayISO()}" max="${todayISO()}">
+      <div class="lbl" style="margin-top:var(--s4)">Frais</div><input class="field sm" id="f4" inputmode="decimal" value="0">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="saveLot" data-id="${a.id}">Enregistrer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  saveLot:d=>{ const a=assetById(d.id), q=num($('#f1').value), p=num($('#f2').value), f=num($('#f4').value);
+    if(!q||q<=0||p==null||p<0||f==null||f<0){ toast('Tous les champs sont obligatoires.'); return; }
+    S.lots.push({id:uid(),assetId:a.id,qty:q,price:p,date:$('#f3').value||todayISO(),fees:f,ccy:a.ccy,fx:fxNow(a.ccy)});
+    touch(a); if(a.envId) touch(assetById(a.envId)); snapshotToday(); closeSheet(); render(); toast('Lot ajouté.'); },
+  delLot:d=>{ const l=S.lots.find(x=>x.id===d.id); if(!l) return;
+    S.lots=S.lots.filter(x=>x.id!==d.id); const a=assetById(l.assetId); touch(a); snapshotToday(); render(); toast('Lot supprimé.'); },
+
+  setEnv:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Enveloppe</h3>${['PEA','CTO','AV'].map(k=>`<button class="opt" data-act="doSetEnv" data-id="${a.id}" data-k="${k}"><strong>${ENV_NAME[k]} — ${pct(ENV_TAX[k],1)}</strong></button>`).join('')}
+      <button class="opt" data-act="doSetEnv" data-id="${a.id}" data-k="NONE"><strong>Aucune enveloppe</strong></button>`); },
+  doSetEnv:d=>{ const a=assetById(d.id), old=a.envId;
+    a.envId = d.k==='NONE'?null:ensureEnv(d.k).id;
+    touch(a); if(old) touch(assetById(old)); if(a.envId) touch(assetById(a.envId));
+    snapshotToday(); closeSheet(); render(); toast('Enveloppe mise à jour.'); },
+
+  editValue:d=>{ const a=assetById(d.id), isImmo=a.cls==='immobilier';
+    openSheet(`<h3>${isImmo?'Actualiser l\'estimation':'Mettre à jour le solde'}</h3>
+      <div class="lbl" style="margin-top:var(--s4)">Montant en ${a.ccy}</div>
+      <input class="field sm" id="f1" inputmode="decimal" value="${isImmo?a.value:a.balance}">
+      <div class="lbl" style="margin-top:var(--s4)">Date</div>
+      <input class="field sm" id="f2" type="date" value="${todayISO()}" max="${todayISO()}">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="saveValue" data-id="${a.id}">Enregistrer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  saveValue:d=>{ const a=assetById(d.id), v=num($('#f1').value);
+    if(v==null||v<0){ toast('Montant invalide.'); return; }
+    if(a.cls==='immobilier'){ a.value=v; a.valueDate=$('#f2').value; } else { a.balance=v; a.balanceDate=$('#f2').value; }
+    a.fx=fxNow(a.ccy); touch(a); snapshotToday(); closeSheet(); render(); toast('Mis à jour.'); },
+
+  editBank:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Établissement et taux</h3>
+      <div class="lbl" style="margin-top:var(--s4)">Établissement</div><input class="field sm" id="f1" value="${esc(a.bank||'')}">
+      <div class="lbl" style="margin-top:var(--s4)">Taux annuel en %</div><input class="field sm" id="f2" inputmode="decimal" value="${a.rate!=null?a.rate:''}">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="saveBank" data-id="${a.id}">Enregistrer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  saveBank:d=>{ const a=assetById(d.id); a.bank=$('#f1').value.trim(); const r=num($('#f2').value); a.rate=r==null?null:r;
+    persist(); closeSheet(); render(); toast('Enregistré.'); },
+
+  editCash:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Liquidités de l'enveloppe</h3>
+      <div class="lbl" style="margin-top:var(--s4)">Montant en ${a.ccy}</div><input class="field sm" id="f1" inputmode="decimal" value="${a.cash||0}">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="saveCash" data-id="${a.id}">Enregistrer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  saveCash:d=>{ const a=assetById(d.id), v=num($('#f1').value); if(v==null||v<0){toast('Montant invalide.');return;}
+    a.cash=v; a.fx=fxNow(a.ccy); touch(a); snapshotToday(); closeSheet(); render(); toast('Enregistré.'); },
+
+  delAsset:d=>{ const a=assetById(d.id);
+    openSheet(`<h3>Supprimer ${esc(a.name)} ?</h3><p class="small muted">Les lots, le crédit adossé et l'historique de cette ligne seront perdus. L'action est définitive.</p>
+      <div style="margin-top:var(--s5)"><button class="btn danger" data-act="doDelAsset" data-id="${a.id}">Supprimer définitivement</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  doDelAsset:d=>{ const a=assetById(d.id);
+    S.assets.filter(x=>x.envId===d.id).forEach(x=>{x.envId=null;touch(x);});
+    S.lots=S.lots.filter(l=>l.assetId!==d.id);
+    S.liabilities=S.liabilities.filter(l=>l.assetId!==d.id);
+    S.assets=S.assets.filter(x=>x.id!==d.id);
+    rebuildTotals(); snapshotToday(); closeSheet(); stack=[]; render(); toast('Ligne supprimée.'); },
+
+  /* projets */
+  startProj:()=>{
+    openSheet(`<h3>Nouveau projet</h3>
+      <div class="lbl" style="margin-top:var(--s4)">Intitulé</div><input class="field sm" id="p1" placeholder="Achat appartement Lyon 3e">
+      <div class="lbl" style="margin-top:var(--s4)">Montant visé</div><input class="field sm" id="p2" inputmode="decimal" placeholder="0">
+      <div class="lbl" style="margin-top:var(--s4)">Apport</div><input class="field sm" id="p3" inputmode="decimal" value="0">
+      <div class="lbl" style="margin-top:var(--s4)">Frais</div><input class="field sm" id="p4" inputmode="decimal" value="0">
+      <div class="lbl" style="margin-top:var(--s4)">Taux du crédit en %</div><input class="field sm" id="p5" inputmode="decimal" value="3,5">
+      <div class="lbl" style="margin-top:var(--s4)">Durée en années</div><input class="field sm" id="p6" inputmode="decimal" value="20">
+      <div class="lbl" style="margin-top:var(--s4)">Assurance en %</div><input class="field sm" id="p7" inputmode="decimal" value="0,34">
+      <div class="lbl" style="margin-top:var(--s4)">Échéance visée</div><input class="field sm" id="p8" type="date" value="${todayISO()}">
+      <div style="margin-top:var(--s5)"><button class="btn" data-act="saveProj">Créer le projet</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  saveProj:()=>{
+    const g=i=>num($('#p'+i).value), n=$('#p1').value.trim();
+    if(!n||g(2)==null||g(3)==null||g(4)==null||g(5)==null||g(6)==null||g(7)==null){ toast('Tous les champs sont obligatoires.'); return; }
+    S.projects.push({id:uid(),name:n,target:g(2),down:g(3),fees:g(4),rate:g(5),years:g(6),insurance:g(7),date:$('#p8').value,done:false});
+    persist(); closeSheet(); TAB='projets'; stack=[]; render(); toast('Projet créé, hors patrimoine.'); },
+  actProj:d=>{ const p=S.projects.find(x=>x.id===d.id);
+    openSheet(`<h3>Acter « ${esc(p.name)} » ?</h3><p class="small muted">Le bien entre dans Patrimoine pour ${money(p.target)} et le crédit de ${money(finance(p).borrowed)} vient en déduction du net.</p>
+      <div style="margin-top:var(--s5)"><button class="btn ember" data-act="doActProj" data-id="${p.id}">Acter et basculer</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  doActProj:d=>{ const p=S.projects.find(x=>x.id===d.id), f=finance(p), ccy=S.user.base;
+    const a={id:uid(),cls:'immobilier',name:p.name,type:'Investissement locatif',value:p.target,valueDate:todayISO(),
+             buyPrice:p.target,fees:p.fees,works:0,ccy,fx:fxNow(ccy)};
+    S.assets.push(a); touch(a);
+    if(f.borrowed>0){ S.liabilities.push({id:uid(),assetId:a.id,amount:f.borrowed,rate:p.rate,years:p.years,insurance:p.insurance,monthly:f.monthly}); touchDebt(); }
+    p.done=true; snapshotToday(); persist(); closeSheet(); stack=[]; TAB='patrimoine'; render(); toast('Projet acté et intégré au patrimoine.'); },
+  delProj:d=>{ S.projects=S.projects.filter(x=>x.id!==d.id); persist(); stack=[]; render(); toast('Projet supprimé.'); },
+
+  /* recherche */
+  quickAdd:d=>{ startWizard('bourse',false); W.data.query=CATALOG.find(c=>c.isin===d.isin).n; W.data.isin=d.isin; W.data.manual=false; W.step=2; drawWizard(); },
+
+  /* réglages */
+  setName:(_,el)=>{ S.user.name=el.value.trim(); persist(); toast('Prénom enregistré.'); },
+  setBase:(_,el)=>{ S.user.base=el.value; persist(); render(); toast('Affichage en '+el.value+'.'); },
+  setTheme:d=>{ S.theme=d.t; applyTheme(); persist(); render(); },
+  setTdKey:(_,el)=>{ S.tdKey=el.value.trim(); persist(); toast('Clé Twelve Data enregistrée.'); },
+  setRate:(d,el)=>{ const v=num(el.value); if(!v||v<=0){ toast('Taux invalide.'); render(); return; }
+    S.rates[d.rate]=v; rebuildTotals(); persist(); render(); toast('Taux mis à jour.'); },
+  export:()=>{
+    const json=JSON.stringify(S,(k,v)=>k==='_c'?undefined:v,2);
+    let ok=false;
+    try{ const b=new Blob([json],{type:'application/json'}), u=URL.createObjectURL(b), a=document.createElement('a');
+      a.href=u; a.download='amalthee-'+todayISO()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),4000); ok=true; }catch(e){}
+    openSheet(`<h3>Export</h3><p class="small muted">${ok?'Le fichier a été proposé au téléchargement. ':''}Vous pouvez aussi copier le contenu ci-dessous.</p>
+      <textarea class="field sm" style="height:220px;border:1px solid var(--rule);border-radius:var(--r);padding:var(--s3);font-size:12px" readonly>${esc(json)}</textarea>
+      <div style="margin-top:var(--s4)"><button class="btn ghost" data-close="1">Fermer</button></div>`); },
+  import:()=>{ openSheet(`<h3>Importer un JSON</h3>
+      <p class="small muted">L'import remplace la totalité de vos données. Il n'y a pas de fusion.</p>
+      <textarea class="field sm" id="imp" style="height:200px;border:1px solid var(--rule);border-radius:var(--r);padding:var(--s3);font-size:12px" placeholder="Collez ici le contenu du fichier"></textarea>
+      <div style="margin-top:var(--s4)"><button class="btn danger" data-act="doImport">Remplacer toutes mes données</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  doImport:()=>{ try{ const o=JSON.parse($('#imp').value);
+      if(!o||!o.assets){ toast('Fichier non reconnu.'); return; }
+      S=Object.assign(blank(),o); rebuildTotals(); persist(); Store.save(S);
+      closeSheet(); applyTheme(); stack=[]; TAB='patrimoine'; render(); toast('Données remplacées.');
+    }catch(e){ toast('JSON invalide.'); } },
+  demo:()=>{ makeDemoHistory(); render(); toast('Historique de démonstration généré.'); },
+  clearSnaps:()=>{ S.snapshots=[]; snapshotToday(); render(); toast('Historique effacé.'); },
+  reset:()=>{ openSheet(`<h3>Tout réinitialiser ?</h3><p class="small muted">Lignes, projets, historique et réglages seront effacés. L'action est définitive.</p>
+      <div style="margin-top:var(--s5)"><button class="btn danger" data-act="doReset">Effacer définitivement</button>
+      <button class="btn ghost" data-close="1">Annuler</button></div>`); },
+  doReset:async()=>{ await Store.wipe(); S=blank(); closeSheet(); location.reload(); }
+};
+function askResume(cls){
+  const d=S.drafts[cls];
+  openSheet(`<h3>Reprendre votre saisie ?</h3>
+    <p class="small muted">Une saisie ${CLASSES[cls].name} a été interrompue à l'étape ${(d.step||0)+1}. Votre brouillon a été conservé.</p>
+    <div style="margin-top:var(--s5)"><button class="btn" data-act="doResume" data-cls="${cls}">Reprendre</button>
+    <button class="btn ghost" data-act="doFresh" data-cls="${cls}">Recommencer</button></div>`);
+}
+ACT.doResume=d=>{ closeSheet(); startWizard(d.cls,true); };
+ACT.doFresh=d=>{ delete S.drafts[d.cls]; persist(); closeSheet(); startWizard(d.cls,false); };
+
+/* service worker : fonctionnement hors ligne une fois installé */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+/* ============================================================
+   13. DÉMARRAGE
+   ============================================================ */
+(async function init(){
+  const saved=await Store.load();
+  if(saved) S=Object.assign(blank(),saved);
+  applyTheme();
+  rebuildTotals();
+  if(!S.onboarded){
+    playIntro(()=>{ ob={step:0,name:S.user.name||'',base:S.user.base||'EUR'}; renderOnboarding(); });
+    return;
+  }
+  /* instantané quotidien à la première ouverture du jour */
+  const t=todayISO();
+  if(S.lastOpen!==t){ S.lastOpen=t; snapshotToday(); }
+  playIntro(()=>greet(()=>{
+    $('#app').style.display='flex'; $('#tabbar').classList.remove('hide'); go('patrimoine');
+  }));
+})();
+
+</script>
+</body>
+</html>
